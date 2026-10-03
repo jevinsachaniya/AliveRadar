@@ -20,6 +20,7 @@ from backend.db import engine, now
 from backend.deployment import database_ready
 from backend.frontend import mount_website
 from backend.models import AuthSession, WorkerHeartbeat
+from backend.runtime import lifespan
 from backend.seo import install_seo_routes
 
 app = FastAPI(
@@ -28,6 +29,7 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url=None,
     openapi_url="/api/v1/openapi.json",
+    lifespan=lifespan,
 )
 
 

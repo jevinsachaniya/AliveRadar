@@ -175,6 +175,7 @@ def test_smtp_verified_tls_authentication_and_message(monkeypatch, secure):
 
     cfg = SimpleNamespace(
         email_configured=True,
+        email_transport="smtp",
         smtp_host="smtp-relay.brevo.com",
         smtp_port=465 if secure else 587,
         smtp_secure=secure,
@@ -249,6 +250,7 @@ def test_authenticated_smtp_refuses_plaintext_connection(monkeypatch):
 
     cfg = SimpleNamespace(
         email_configured=True,
+        email_transport="smtp",
         smtp_host="smtp-relay.brevo.com",
         smtp_port=587,
         smtp_secure=False,

@@ -47,15 +47,16 @@ def heartbeat(identifier, cleanup=False):
         db.commit()
 
 
-async def run():
-    stopped = asyncio.Event()
+async def run(stopped: asyncio.Event | None = None, *, handle_signals: bool = True):
+    stopped = stopped if stopped is not None else asyncio.Event()
     loop = asyncio.get_running_loop()
 
     def stop(signum, frame):
         loop.call_soon_threadsafe(stopped.set)
 
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, stop)
+    if handle_signals:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, stop)
     identifier = new_id()
 
     async def pause(seconds):

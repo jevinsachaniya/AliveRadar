@@ -50,7 +50,17 @@ def timestamp(value: str | None) -> str:
         return value
 
 
-def render_email(subject: str, text: str, origin: str, template: EmailContext | None = None) -> str:
+def render_email(
+    subject: str,
+    text: str,
+    origin: str,
+    template: EmailContext | None = None,
+    *,
+    hosted_logo: bool = False,
+) -> str:
+    logo_src = html.escape(
+        f"{origin}/brand/aliveradar-mark.png" if hosted_logo else f"cid:{LOGO_CID}", quote=True
+    )
     data = template or {}
     kind = data.get("kind", "message")
     page = data.get("page_name") or "Your page"
@@ -170,7 +180,7 @@ def render_email(subject: str, text: str, origin: str, template: EmailContext | 
 <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;table-layout:fixed;border:1px solid #e1e5dd;border-radius:18px;background:#ffffff;">
 <tr><td bgcolor="#153e30" style="padding:24px;border-radius:18px 18px 0 0;">
-<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="56" style="width:56px;"><img src="cid:{LOGO_CID}" width="48" height="48" alt="AliveRadar logo" style="display:block;width:48px;height:48px;background:#f1f2e9;border:4px solid #f1f2e9;border-radius:14px;"></td><td style="padding-left:14px;"><div style="color:#ffffff;font-size:23px;line-height:28px;letter-spacing:-.7px;font-weight:bold;">Alive<span style="color:#d2ef88;">Radar</span><span style="color:#d2ef88;">.</span></div><div style="color:#c3d7c8;font-size:11px;line-height:18px;">Every page, on your radar.</div></td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="56" style="width:56px;"><img src="{logo_src}" width="48" height="48" alt="AliveRadar logo" style="display:block;width:48px;height:48px;background:#f1f2e9;border:4px solid #f1f2e9;border-radius:14px;"></td><td style="padding-left:14px;"><div style="color:#ffffff;font-size:23px;line-height:28px;letter-spacing:-.7px;font-weight:bold;">Alive<span style="color:#d2ef88;">Radar</span><span style="color:#d2ef88;">.</span></div><div style="color:#c3d7c8;font-size:11px;line-height:18px;">Every page, on your radar.</div></td></tr></table>
 </td></tr>
 <tr><td style="padding:30px 24px 26px;">
 <span style="display:inline-block;padding:7px 10px;background:{tint};border-radius:6px;color:{accent};font-size:10px;line-height:14px;letter-spacing:1px;font-weight:bold;">{badge}</span>

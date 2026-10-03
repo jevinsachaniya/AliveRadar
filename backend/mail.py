@@ -1,8 +1,10 @@
+import json
 import smtplib
 import ssl
 from email.message import EmailMessage
-from email.utils import formatdate
+from email.utils import formatdate, parseaddr
 from functools import lru_cache
+from http.client import HTTPException, HTTPSConnection
 from pathlib import Path
 
 from backend.config import settings
@@ -57,6 +59,40 @@ def send_mail(
     cfg = settings()
     if not cfg.email_configured:
         raise RuntimeError(cfg.email_configuration_issue or "Email delivery is not configured.")
+    if cfg.email_transport == "brevo_api":
+        name, sender = parseaddr(cfg.smtp_from)
+        payload = {
+            "sender": {"email": sender, "name": name or "AliveRadar"},
+            "to": [{"email": recipient}],
+            "subject": subject,
+            "textContent": text,
+            "htmlContent": render_email(subject, text, cfg.app_origin, template, hosted_logo=True),
+        }
+        if message_id:
+            payload["headers"] = {"X-Aliveradar-Delivery": message_id}
+        connection = HTTPSConnection(
+            "api.brevo.com", timeout=15, context=ssl.create_default_context()
+        )
+        try:
+            connection.request(
+                "POST",
+                "/v3/smtp/email",
+                body=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "api-key": cfg.brevo_api_key,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+            )
+            response = connection.getresponse()
+            response.read(16384)
+            if response.status != 201:
+                raise RuntimeError(f"Brevo HTTPS email rejected (HTTP {response.status}).")
+        except (OSError, HTTPException):
+            raise RuntimeError("Brevo HTTPS email request failed.") from None
+        finally:
+            connection.close()
+        return
     message = build_message(recipient, subject, text, message_id, template)
     transport = (
         smtplib.SMTP_SSL(

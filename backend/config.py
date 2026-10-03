@@ -20,10 +20,13 @@ class Settings(BaseSettings):
     port: int = Field(default=3001, ge=1, le=65535)
     session_days: int = Field(default=7, ge=1, le=30)
     auth_otp_secret: str = Field(default="", repr=False)
+    worker_in_api: bool = False
     worker_concurrency: int = Field(default=4, ge=1, le=32)
     worker_poll_ms: int = Field(default=2000, ge=250)
     retention_days: int = Field(default=90, ge=30)
     dev_mock_origin: str = ""
+    email_transport: Literal["smtp", "brevo_api"] = "smtp"
+    brevo_api_key: str = Field(default="", repr=False)
     smtp_host: str = ""
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_secure: bool = False
@@ -57,20 +60,25 @@ class Settings(BaseSettings):
 
     @property
     def email_configured(self) -> bool:
-        return self.smtp_configured and self.email_configuration_issue is None
+        return self.email_configuration_issue is None
 
     @property
     def email_provider(self) -> str | None:
+        if self.email_transport == "brevo_api":
+            return "brevo" if self.brevo_api_key else None
         if not self.smtp_configured:
             return None
         return "brevo" if self.smtp_host.lower() == "smtp-relay.brevo.com" else "smtp"
 
     @property
     def email_configuration_issue(self) -> str | None:
-        if not self.smtp_configured:
+        if self.email_transport == "brevo_api":
+            if not self.brevo_api_key:
+                return "Brevo HTTPS API requires BREVO_API_KEY (not an SMTP key)."
+        elif not self.smtp_configured:
             return "Email delivery is not configured."
         if self.email_provider == "brevo":
-            if not self.smtp_user or not self.smtp_pass:
+            if self.email_transport == "smtp" and (not self.smtp_user or not self.smtp_pass):
                 return "Brevo SMTP credentials are incomplete."
             sender = parseaddr(self.smtp_from)[1]
             local, separator, domain = sender.rpartition("@")

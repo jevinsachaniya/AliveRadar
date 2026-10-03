@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import time
 from datetime import timedelta
@@ -91,6 +92,7 @@ def main():
         "command",
         choices=[
             "api",
+            "free-server",
             "worker",
             "migrate",
             "release",
@@ -105,8 +107,18 @@ def main():
     )
     parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
-    if args.command == "api":
+    if args.command in {"api", "free-server"}:
         import uvicorn
+
+        if args.command == "free-server":
+            if args.reload or os.environ.get("WEB_CONCURRENCY", "1") != "1":
+                parser.error("free-server requires one process and no --reload.")
+            os.environ["WORKER_IN_API"] = "true"
+            os.environ["WEB_CONCURRENCY"] = "1"
+            settings.cache_clear()
+            from backend.deployment import release
+
+            release()
 
         uvicorn.run(
             "backend.app:app",

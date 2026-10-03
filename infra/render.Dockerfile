@@ -21,4 +21,4 @@ COPY --chown=pulse:pulse alembic.ini ./
 COPY --from=frontend --chown=pulse:pulse /app/dist/web ./dist/web
 USER pulse
 EXPOSE 10000
-CMD ["python", "-m", "backend.cli", "api"]
+CMD ["python", "-m", "backend.cli", "free-server"]
