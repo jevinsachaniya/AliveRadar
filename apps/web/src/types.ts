@@ -1,0 +1,117 @@
+export type Status = 'UP' | 'DOWN' | 'PAUSED' | 'PENDING' | 'UNKNOWN';
+export type User = { id: string; name: string; email: string; isDemo: boolean; createdAt: string };
+export type Auth = { user: User; csrfToken: string };
+export type Check = {
+  id: string;
+  checkedAt: string;
+  resultStatus: Status;
+  httpStatusCode: number | null;
+  responseTimeMs: number | null;
+  errorType: string | null;
+  sanitizedErrorMessage: string | null;
+};
+export type Incident = {
+  id: string;
+  monitorId: string;
+  startedAt: string;
+  resolvedAt: string | null;
+  cause: string;
+  status: 'OPEN' | 'RESOLVED';
+  monitor?: { id: string; name: string };
+  deliveries?: {
+    id: string;
+    eventType: string;
+    status: string;
+    attempts: number;
+    deliveredAt: string | null;
+  }[];
+};
+export type Daily = { day: string; checks: number; up: number };
+export type ChartPoint = { time: string; responseMs: number | null };
+export type Analytics = {
+  uptime: number | null;
+  totalChecks: number;
+  averageResponseMs: number | null;
+  latestResponseMs: number | null;
+  minResponseMs: number | null;
+  maxResponseMs: number | null;
+  totalIncidents: number;
+  downtimeMs: number;
+  since: string;
+  until: string;
+  chart: ChartPoint[];
+  daily: Daily[];
+};
+export type Monitor = {
+  id: string;
+  websiteId?: string | null;
+  name: string;
+  url: string;
+  method: 'GET' | 'HEAD';
+  intervalSeconds: number;
+  timeoutMs: number;
+  expectedStatusCodes: number[];
+  failureThreshold: number;
+  recoveryThreshold: number;
+  isActive: boolean;
+  currentStatus: Status;
+  lastCheckedAt: string | null;
+  createdAt: string;
+  latestCheck?: Check;
+  analytics?: Analytics;
+};
+export type Overview = {
+  websites?: Website[];
+  total: number;
+  up: number;
+  down: number;
+  paused: number;
+  pending: number;
+  uptime: number | null;
+  averageResponseMs: number | null;
+  totalChecks: number;
+  recentIncidents: Incident[];
+  chart: ChartPoint[];
+  workerHealthy: boolean;
+};
+export type Website = {
+  id: string;
+  name: string;
+  url: string;
+  emailEnabled: boolean;
+  accountEmailEnabled: boolean;
+  overallStatus: 'UP' | 'DEGRADED' | 'DOWN' | null;
+  totalPages: number;
+  activePages: number;
+  up: number;
+  down: number;
+  pending: number;
+  paused: number;
+  failedPages: { id: string; name: string; url: string }[];
+  pages: Monitor[];
+  createdAt: string;
+};
+export type Paginated<T> = { items: T[]; total: number; page: number; limit: number };
+export type StatusPage = {
+  id: string;
+  name: string;
+  slug: string;
+  isPublic: boolean;
+  monitors: { monitorId: string }[];
+};
+export type Preference = {
+  id?: string;
+  monitorId: string | null;
+  emailEnabled: boolean;
+  outageNotifications: boolean;
+  recoveryNotifications: boolean;
+};
+export type Delivery = {
+  id: string;
+  eventType: string;
+  status: string;
+  attempts: number;
+  createdAt: string;
+  deliveredAt: string | null;
+  incident: { monitor: { name: string } };
+};

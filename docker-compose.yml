@@ -1,0 +1,97 @@
+name: uptimepulse
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: uptimepulse
+      POSTGRES_USER: pulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    command: [postgres, -c, timezone=UTC, -c, max_connections=100]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:54329:5432'
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U pulse -d uptimepulse']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  migrate:
+    build:
+      context: .
+      target: server
+    environment:
+      DATABASE_URL: postgresql://pulse:${POSTGRES_PASSWORD}@db:5432/uptimepulse?connection_limit=5
+      NODE_ENV: ${COMPOSE_NODE_ENV:-development}
+      APP_ORIGIN: ${COMPOSE_APP_ORIGIN:-http://localhost:8080}
+      DEV_MOCK_ORIGIN: ''
+    command: [python, -m, backend.cli, migrate]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build:
+      context: .
+      target: server
+    env_file: .env
+    environment:
+      NODE_ENV: ${COMPOSE_NODE_ENV:-development}
+      APP_ORIGIN: ${COMPOSE_APP_ORIGIN:-http://localhost:8080}
+      DATABASE_URL: postgresql://pulse:${POSTGRES_PASSWORD}@db:5432/uptimepulse?connection_limit=10
+      DEV_MOCK_ORIGIN: ''
+      PORT: 3001
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3001/health',timeout=5)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    stop_grace_period: 40s
+  worker:
+    build:
+      context: .
+      target: server
+    command: [python, -m, backend.cli, worker]
+    env_file: .env
+    environment:
+      NODE_ENV: ${COMPOSE_NODE_ENV:-development}
+      APP_ORIGIN: ${COMPOSE_APP_ORIGIN:-http://localhost:8080}
+      DATABASE_URL: postgresql://pulse:${POSTGRES_PASSWORD}@db:5432/uptimepulse?connection_limit=10
+      DEV_MOCK_ORIGIN: ''
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -m, backend.cli, worker-health]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    stop_grace_period: 40s
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - '127.0.0.1:8080:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, --spider, -q, http://127.0.0.1/]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+volumes:
+  postgres_data:

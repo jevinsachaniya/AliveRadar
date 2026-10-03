@@ -1,0 +1,17 @@
+node_modules
+dist
+.local
+.env
+.env.*
+!.env.example
+.git
+coverage
+test-results
+playwright-report
+*.log
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info

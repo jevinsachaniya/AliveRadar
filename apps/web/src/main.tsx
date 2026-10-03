@@ -1,0 +1,140 @@
+import React, { lazy, Suspense } from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
+import { api, setCsrf, HttpError } from './api';
+import type { Auth } from './types';
+import { AppLayout } from './components/AppLayout';
+import { LoadingSkeleton, ErrorState } from './components/ui';
+import './styles.css';
+import './website.css';
+const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
+const Overview = lazy(() => import('./pages/Overview').then((m) => ({ default: m.Overview })));
+const Websites = lazy(() => import('./pages/Websites').then((m) => ({ default: m.Websites })));
+const WebsiteDetails = lazy(() =>
+  import('./pages/Websites').then((m) => ({ default: m.WebsiteDetails })),
+);
+const MonitorDetails = lazy(() =>
+  import('./pages/MonitorDetails').then((m) => ({ default: m.MonitorDetails })),
+);
+const Incidents = lazy(() => import('./pages/Incidents').then((m) => ({ default: m.Incidents })));
+const IncidentDetails = lazy(() =>
+  import('./pages/Incidents').then((m) => ({ default: m.IncidentDetails })),
+);
+const StatusPages = lazy(() =>
+  import('./pages/StatusPages').then((m) => ({ default: m.StatusPages })),
+);
+const PublicStatus = lazy(() =>
+  import('./pages/StatusPages').then((m) => ({ default: m.PublicStatus })),
+);
+const Notifications = lazy(() =>
+  import('./pages/Notifications').then((m) => ({ default: m.Notifications })),
+);
+const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const AuthPage = lazy(() => import('./pages/Auth').then((m) => ({ default: m.AuthPage })));
+const client = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 10000, refetchOnWindowFocus: true } },
+});
+function App() {
+  const location = useLocation();
+  const isPublic = location.pathname.startsWith('/status/');
+  const isAuth = ['/login', '/register', '/forgot-password', '/reset-password'].includes(
+    location.pathname,
+  );
+  const auth = useQuery({
+    queryKey: ['auth'],
+    retry: false,
+    enabled: !isPublic,
+    queryFn: async () => {
+      try {
+        const data = await api<Auth>('/auth/me');
+        setCsrf(data.csrfToken);
+        return data;
+      } catch (error) {
+        if (error instanceof HttpError && error.status === 401) {
+          if (import.meta.env.DEV && !sessionStorage.getItem('pulse-signed-out') && !isAuth) {
+            const data = await api<Auth>('/auth/demo', { method: 'POST' });
+            setCsrf(data.csrfToken);
+            return data;
+          }
+          return null;
+        }
+        throw error;
+      }
+    },
+  });
+  if (isPublic)
+    return (
+      <Routes>
+        <Route path="/status/:slug" element={<PublicStatus />} />
+      </Routes>
+    );
+  if (isAuth)
+    return (
+      <Routes>
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
+        <Route path="/reset-password" element={<AuthPage mode="reset" />} />
+      </Routes>
+    );
+  if (auth.isPending)
+    return (
+      <div className="boot-loading">
+        <LoadingSkeleton />
+      </div>
+    );
+  if (auth.error)
+    return (
+      <div className="boot-loading">
+        <ErrorState error={auth.error} onRetry={() => void auth.refetch()} />
+      </div>
+    );
+  if (!auth.data)
+    return (
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<Home />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Route>
+      </Routes>
+    );
+  const user = auth.data.user;
+  return (
+    <Routes>
+      <Route element={<AppLayout user={user} />}>
+        <Route index element={<Home user={user} />} />
+        <Route path="/overview" element={<Overview user={user} />} />
+        <Route path="/websites" element={<Websites />} />
+        <Route path="/websites/:id" element={<WebsiteDetails />} />
+        <Route path="/monitors" element={<Overview user={user} monitorsOnly />} />
+        <Route path="/monitors/:id" element={<MonitorDetails />} />
+        <Route path="/incidents" element={<Incidents />} />
+        <Route path="/incidents/:id" element={<IncidentDetails />} />
+        <Route path="/status-pages" element={<StatusPages />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/settings" element={<Settings user={user} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <QueryClientProvider client={client}>
+      <BrowserRouter>
+        <Suspense
+          fallback={
+            <div className="boot-loading">
+              <LoadingSkeleton />
+            </div>
+          }
+        >
+          <App />
+        </Suspense>
+      </BrowserRouter>
+      <Toaster position="bottom-right" richColors closeButton />
+    </QueryClientProvider>
+  </React.StrictMode>,
+);
