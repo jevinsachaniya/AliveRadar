@@ -12,17 +12,21 @@ from backend.frontend import mount_website
 
 
 @pytest.fixture
-def website(tmp_path, monkeypatch):
+def website(seo_directory, monkeypatch):
     from backend import app as api
+    from backend import seo
 
-    (tmp_path / "index.html").write_text('<html><div id="root">AliveRadar</div></html>')
+    tmp_path = seo_directory
     (tmp_path / "assets").mkdir()
     (tmp_path / "assets/app-abcd1234.js").write_text("console.log('AliveRadar');")
     (tmp_path / "brand").mkdir()
     (tmp_path / "brand/logo.png").write_bytes(b"png-fixture")
     (tmp_path / ".env").write_text("private-do-not-serve")
-    cfg = SimpleNamespace(node_env="production", app_origin="https://aliveradar-web.onrender.com")
+    cfg = SimpleNamespace(
+        node_env="production", app_origin="https://aliveradar-web.onrender.com", seo_indexable=True
+    )
     monkeypatch.setattr(api, "settings", lambda: cfg)
+    monkeypatch.setattr(seo, "settings", lambda: cfg)
     monkeypatch.setattr(
         api, "lookup_session", lambda raw: pytest.fail("Static files must not query sessions")
     )
@@ -60,7 +64,9 @@ def test_production_browser_routes_and_security(website, path):
     website.cookies.set("pulse_session", "expired-cookie")
     response = website.get(path)
     assert response.status_code == 200 and "AliveRadar" in response.text
-    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["cache-control"] == (
+        "no-cache" if path in {"/", "/overview"} else "private, no-store"
+    )
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert "max-age=31536000" in response.headers["strict-transport-security"]
 

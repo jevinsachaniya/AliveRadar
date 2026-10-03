@@ -16,7 +16,8 @@ const navigation = [
 
 export function SiteHeader({ user }: { user?: User }) {
   const [mobile, setMobile] = useState(false);
-  const [dark, setDark] = useState(() => localStorage.getItem('pulse-theme') === 'dark');
+  const [dark, setDark] = useState(false);
+  const [themeReady, setThemeReady] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const headerRef = useRef<HTMLElement>(null);
@@ -26,9 +27,22 @@ export function SiteHeader({ user }: { user?: User }) {
     navigate('/monitors?focus=search');
   };
   useEffect(() => {
+    try {
+      setDark(localStorage.getItem('pulse-theme') === 'dark');
+    } catch {
+      /* Use the default theme if storage is unavailable. */
+    }
+    setThemeReady(true);
+  }, []);
+  useEffect(() => {
+    if (!themeReady) return;
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    localStorage.setItem('pulse-theme', dark ? 'dark' : 'light');
-  }, [dark]);
+    try {
+      localStorage.setItem('pulse-theme', dark ? 'dark' : 'light');
+    } catch {
+      /* The toggle also works without persistent storage. */
+    }
+  }, [dark, themeReady]);
   useEffect(() => setMobile(false), [location.pathname]);
   useEffect(() => {
     if (!mobile) return;

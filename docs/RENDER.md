@@ -60,7 +60,9 @@ Open the web service's assigned HTTPS URL:
 - Add a real public website and multiple page URLs. Checks should continue with the browser closed. Verify named-page failures and website UP/DEGRADED/DOWN state.
 - Test one outage and recovery with website and account email preferences enabled. Confirm delivery and the inline AliveRadar logo. Provider acceptance alone does not prove inbox delivery.
 
-The frontend calls `/api/v1` on the same origin. The backend protects account APIs; serving the static application never grants a session. Static files and health probes do not query session cookies or consume API rate limits. Hashed assets are immutable; HTML is revalidated so a release picks up the new bundle. Missing assets, unknown API endpoints and hidden files return 404 instead of the SPA HTML.
+The frontend calls `/api/v1` on the same origin. The backend protects account APIs; serving the static application never grants a session. Static files and health probes do not query session cookies or consume API rate limits. Hashed assets are immutable; HTML is revalidated so a release picks up the new bundle. Missing assets, unknown API endpoints and hidden files return 404. Unknown website routes show a real HTML 404 page.
+
+Public homepage and overview content is pre-rendered for search engines. The Blueprint enables production indexing with `SEO_INDEXABLE=true`; previews should set it to false. Canonical URLs, social previews and `/sitemap.xml` use `APP_ORIGIN`. After connecting the domain, verify Search Console ownership and submit the sitemap. See [SEO setup](SEO.md).
 
 `FORWARDED_ALLOW_IPS` trusts loopback and private-network proxy ranges for Render's ingress, rather than arbitrary public proxies. If a networking change alters the proxy addresses, update the trusted ranges. Confirm separate users do not share one proxy IP for rate limiting before scaling. The application uses one API process initially; rate limits are per process and each API/worker process has a bounded database pool.
 

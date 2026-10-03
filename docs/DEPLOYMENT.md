@@ -4,7 +4,7 @@ For Render, use [the Render deployment guide](RENDER.md) and the root `render.ya
 
 Login and registration require working SMTP and a persistent private `AUTH_OTP_SECRET` of at least 32 characters. Generate it with `python -c "import secrets; print(secrets.token_hex(32))"` and store it in the deployment environment alongside SMTP credentials. All API replicas must share the same value; rotating it invalidates pending OTP challenges. Migration `0003_email_otp` preserves monitoring data and requires old sessions to sign in again with email verification. Do not seed or reset the database to apply authentication changes.
 
-Run the static frontend, Python FastAPI API, independent Python worker and PostgreSQL as separate components. API and worker require Python 3.12+; Python 3.13 is pinned for local setup and images. Node 24 builds the frontend. The worker needs an always-on service.
+Run the website/API, independent Python worker and PostgreSQL as managed components. API and worker require Python 3.12+; Python 3.13 is pinned for local setup and images. Node 24 builds and pre-renders the frontend. The Python API supplies runtime SEO metadata; Render serves website/API together, while Compose also uses Nginx for assets and ingress. The worker needs an always-on service. See [SEO configuration](SEO.md).
 
 ## Configuration
 

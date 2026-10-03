@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     database_url: str
     app_origin: str = "http://localhost:5173"
     web_dist_dir: str = ""
+    seo_indexable: bool = True
     port: int = Field(default=3001, ge=1, le=65535)
     session_days: int = Field(default=7, ge=1, le=30)
     auth_otp_secret: str = Field(default="", repr=False)

@@ -22,6 +22,8 @@ services:
         value: '1'
       - key: WEB_DIST_DIR
         value: /app/dist/web
+      - key: SEO_INDEXABLE
+        value: 'true'
       - key: APP_ORIGIN
         fromService:
           type: web

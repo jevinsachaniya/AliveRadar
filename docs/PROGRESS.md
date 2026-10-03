@@ -2,6 +2,20 @@
 
 AliveRadar's homepage, feature overview, how-it-works and FAQ are public. Login is required to add a website and access account monitoring, with separate email verification pages for registration and sign-in. After authentication, the requested Add Website form opens automatically. Published status-page links remain public. Warm cream, forest green and lime styling carries through the portal and branded OTP emails. Existing data and Python monitoring services are preserved. See [website design](WEBSITE_DESIGN.md) for implementation details.
 
+## SEO implementation on 3 October 2026
+
+Public homepage and overview content now ships as HTML generated from the actual React components during the production build. React hydrates it for interaction. A shared route catalog supplies unique metadata, canonical URLs, Open Graph/Twitter previews and brand/site/page structured data, including overview breadcrumbs. Python fills the canonical origin at runtime, generates robots/sitemap responses and returns real HTML 404s for unknown website URLs. Account/OTP/user-status routes are excluded from indexing. Development and staging indexing is controlled consistently. Hashed caching, HTML ETags and frontend gzip are supported; account-only dialogs and validation remain lazy-loaded.
+
+Render packages the hidden SEO artifacts and enables production indexing. The release command validates them before deployment. Compose's Python image also contains the frontend, and Nginx proxies website pages for runtime metadata while serving hashed assets. The local environment and actual credentials were preserved. See [SEO setup](SEO.md).
+
+- **108 Python unit checks, 37 disposable PostgreSQL integration checks and 24 frontend checks passed.** SEO checks cover HTML content without JavaScript, metadata escaping, canonical query removal, noindex rules, JSON-LD, script CSP hashes, HEAD/ETag responses, permanent redirects, real 404s, sitemap contents and staging exclusion.
+- **21 desktop/mobile Playwright checks passed, with three desktop skips for mobile-only cases**, covering OTP, pending Add Website actions, CRUD, named-page failures, alert preferences, public status, navigation, themes and mobile containment.
+- A fresh isolated production-mode API/worker passed compiled-website checks with JavaScript disabled, including native FAQ and public content. Desktop/mobile hydration, saved dark theme, metadata navigation, structured data, logo and private-route guards passed at 1280/390 px without hydration/CSP errors. Screenshots are in `.local/render/`; temporary processes/databases were removed.
+- Build/prerender, TypeScript/mypy, ESLint/Ruff and formatting passed. Updated `render.yaml` passed the official Render JSON schema. The guest entry bundle is approximately 404 KB minified / 126 KB gzip; validation and charts remain separate chunks.
+- Parallel heavy browser/database checks initially hit local Windows memory/GPU errors; rerunning them separately passed. No production behavior was weakened to work around the test machine.
+
+Docker/cloud provisioning, owned-domain DNS, Search Console verification/submission, deployed social previews and field Core Web Vitals remain external verification steps. No ranking, indexing or Lighthouse score has been claimed.
+
 ## Render production configuration on 3 October 2026
 
 Added a Render Blueprint for a paid same-origin website/API, separate always-on monitoring worker and private managed PostgreSQL 18 in Singapore. A dedicated multi-stage Dockerfile builds React with Node 24 and runs Python 3.13 as a non-root user with hash-pinned dependencies, bundled migrations and inline email logo. Local secrets are excluded. SMTP values are entered in Render and shared with the worker; the OTP secret is generated once. Production release jobs validate configuration, serialize migrations and verify the exact schema before starting services. Database health is independent of worker startup and revision checks during rolling releases. API/worker shutdown budgets allow active checks to finish.

@@ -45,6 +45,10 @@ def release():
         raise RuntimeError(cfg.email_configuration_issue or "Email delivery is not configured.")
     if cfg.web_dist_dir and not (Path(cfg.web_dist_dir) / "index.html").is_file():
         raise RuntimeError("WEB_DIST_DIR is missing the compiled frontend index.html.")
+    if cfg.web_dist_dir:
+        from backend.seo import SeoPages
+
+        SeoPages(Path(cfg.web_dist_dir))
     migrate()
     if not schema_current():
         raise RuntimeError("Database schema verification failed after migration.")

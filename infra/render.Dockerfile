@@ -7,6 +7,7 @@ RUN npm ci --no-audit --no-fund
 COPY apps/web ./apps/web
 COPY packages/shared ./packages/shared
 COPY tsconfig.json ./
+COPY scripts/prerender.mjs ./scripts/prerender.mjs
 RUN npm run build
 
 FROM python:3.13-slim AS runtime

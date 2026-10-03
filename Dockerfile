@@ -14,6 +14,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.txt && useradd --create-home --uid 10001 pulse
 COPY --chown=pulse:pulse backend ./backend
 COPY --chown=pulse:pulse alembic.ini ./
+COPY --from=build --chown=pulse:pulse /app/dist/web ./dist/web
 USER pulse
 EXPOSE 3001
 CMD ["python", "-m", "backend.cli", "api"]

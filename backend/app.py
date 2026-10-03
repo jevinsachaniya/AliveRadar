@@ -20,6 +20,7 @@ from backend.db import engine, now
 from backend.deployment import database_ready
 from backend.frontend import mount_website
 from backend.models import AuthSession, WorkerHeartbeat
+from backend.seo import install_seo_routes
 
 app = FastAPI(
     title="AliveRadar API",
@@ -139,7 +140,10 @@ class SecurityMiddleware:
                         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
                         "img-src 'self' data: https://fastapi.tiangolo.com; frame-ancestors 'none'"
                     )
-                headers.append((b"content-security-policy", policy.encode()))
+                if not any(name.lower() == b"content-security-policy" for name, _ in headers):
+                    headers.append((b"content-security-policy", policy.encode()))
+                if not any(name.lower() == b"x-robots-tag" for name, _ in headers):
+                    headers.append((b"x-robots-tag", b"noindex, nofollow"))
                 if settings().node_env == "production":
                     headers.append(
                         (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
@@ -251,6 +255,8 @@ def ready():
             {"status": "degraded", "database": False, "worker": False}, status_code=503
         )
 
+
+install_seo_routes(app)
 
 if settings().web_dist_dir:
     mount_website(app, settings().web_dist_dir)

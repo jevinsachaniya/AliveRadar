@@ -37,6 +37,7 @@ services:
       target: server
     env_file: .env
     environment:
+      WEB_DIST_DIR: /app/dist/web
       NODE_ENV: ${COMPOSE_NODE_ENV:-development}
       APP_ORIGIN: ${COMPOSE_APP_ORIGIN:-http://localhost:8080}
       DATABASE_URL: postgresql://pulse:${POSTGRES_PASSWORD}@db:5432/uptimepulse?connection_limit=10

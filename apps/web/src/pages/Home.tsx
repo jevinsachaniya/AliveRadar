@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -20,9 +20,6 @@ import {
 import { api } from '../api';
 import { addWebsiteTarget, authPath } from '../authNavigation';
 import type { Monitor, Overview, Paginated, User } from '../types';
-import { AddMonitorDialog } from '../components/AddMonitorDialog';
-import { AddWebsiteDialog } from '../components/AddWebsiteDialog';
-import { WebsiteOverview } from '../components/WebsiteCards';
 import {
   ErrorState,
   LogoMark,
@@ -33,6 +30,16 @@ import {
   percent,
   relative,
 } from '../components/ui';
+
+const AddMonitorDialog = lazy(() =>
+  import('../components/AddMonitorDialog').then((module) => ({ default: module.AddMonitorDialog })),
+);
+const AddWebsiteDialog = lazy(() =>
+  import('../components/AddWebsiteDialog').then((module) => ({ default: module.AddWebsiteDialog })),
+);
+const WebsiteOverview = lazy(() =>
+  import('../components/WebsiteCards').then((module) => ({ default: module.WebsiteOverview })),
+);
 
 const questions = [
   [
@@ -251,7 +258,11 @@ export function Home({ user }: { user?: User }) {
         </div>
       </div>
 
-      {user && data?.websites && <WebsiteOverview websites={data.websites} />}
+      {user && data?.websites && (
+        <Suspense fallback={<LoadingSkeleton />}>
+          <WebsiteOverview websites={data.websites} />
+        </Suspense>
+      )}
       <section id="live-status" className="website-section live-section">
         <div className="website-section-heading">
           <div>
@@ -495,8 +506,12 @@ export function Home({ user }: { user?: User }) {
           </Link>
         )}
       </section>
-      {user && <AddMonitorDialog open={add} onOpenChange={setAdd} />}
-      {user && <AddWebsiteDialog open={addWebsite} onOpenChange={setAddWebsite} />}
+      {user && (
+        <Suspense fallback={null}>
+          <AddMonitorDialog open={add} onOpenChange={setAdd} />
+          <AddWebsiteDialog open={addWebsite} onOpenChange={setAddWebsite} />
+        </Suspense>
+      )}
     </>
   );
 }

@@ -8,6 +8,8 @@ The website has a public homepage and feature overview, top navigation and a Rea
 
 Use the root [render.yaml](render.yaml) Blueprint for an HTTPS website/API, an always-on Python monitoring worker and private PostgreSQL. Production migrations and configuration checks run before deployment. See [the Render deployment guide](docs/RENDER.md) for the three Brevo values to enter, paid-plan requirements, verification and connecting your AliveRadar domain.
 
+Production builds pre-render public content and provide unique metadata, canonical URLs, social previews, structured data, `robots.txt` and `sitemap.xml`. Account and verification pages remain excluded from search. See [SEO setup and domain verification](docs/SEO.md).
+
 ## Start on Windows
 
 Requires Node.js 24 for the frontend. The setup helper installs Python 3.13 and dependencies into this workspace; an existing Python 3.12+ installation with uv also works.
