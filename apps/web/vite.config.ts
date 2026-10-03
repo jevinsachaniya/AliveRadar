@@ -8,7 +8,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
-    proxy: { '/api': 'http://127.0.0.1:3001', '/health': 'http://127.0.0.1:3001' },
+    proxy: {
+      '/api': process.env.API_PROXY_TARGET || 'http://127.0.0.1:3001',
+      '/health': process.env.API_PROXY_TARGET || 'http://127.0.0.1:3001',
+    },
   },
   build: {
     outDir: '../../dist/web',

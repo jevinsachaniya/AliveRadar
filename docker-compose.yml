@@ -25,6 +25,7 @@ services:
       DATABASE_URL: postgresql://pulse:${POSTGRES_PASSWORD}@db:5432/uptimepulse?connection_limit=5
       NODE_ENV: ${COMPOSE_NODE_ENV:-development}
       APP_ORIGIN: ${COMPOSE_APP_ORIGIN:-http://localhost:8080}
+      AUTH_OTP_SECRET: ${AUTH_OTP_SECRET:?Set AUTH_OTP_SECRET in .env}
       DEV_MOCK_ORIGIN: ''
     command: [python, -m, backend.cli, migrate]
     depends_on:

@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { api } from '../api';
+import { addWebsiteTarget, authPath } from '../authNavigation';
 import type { Monitor, Overview, Paginated, User } from '../types';
 import { AddMonitorDialog } from '../components/AddMonitorDialog';
 import { AddWebsiteDialog } from '../components/AddWebsiteDialog';
@@ -78,8 +79,8 @@ export function Home({ user }: { user?: User }) {
         document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }),
       );
   }, [location.hash]);
-  const data = overview.data;
-  const featured = monitors.data?.items[0];
+  const data = user ? overview.data : undefined;
+  const featured = user ? monitors.data?.items[0] : undefined;
   const down = !!data?.down;
   return (
     <>
@@ -109,7 +110,10 @@ export function Home({ user }: { user?: User }) {
                 <Plus size={18} /> Add your website <ArrowUpRight size={18} />
               </button>
             ) : (
-              <Link className="button primary hero-primary" to="/register">
+              <Link
+                className="button primary hero-primary"
+                to={authPath('/login', addWebsiteTarget)}
+              >
                 Start monitoring <ArrowUpRight size={18} />
               </Link>
             )}
@@ -277,8 +281,8 @@ export function Home({ user }: { user?: User }) {
                 starts with the first real check.
               </p>
             </div>
-            <Link className="button primary" to="/register">
-              Create your account <ArrowRight size={17} />
+            <Link className="button primary" to={authPath('/login', addWebsiteTarget)}>
+              Add your website <ArrowRight size={17} />
             </Link>
           </div>
         ) : overview.isPending || monitors.isPending ? (
@@ -410,7 +414,10 @@ export function Home({ user }: { user?: User }) {
               <Check size={16} /> Let the history speak for itself
             </li>
           </ul>
-          <Link className="button secondary" to={user ? '/status-pages' : '/register'}>
+          <Link
+            className="button secondary"
+            to={user ? '/status-pages' : '/overview#public-status'}
+          >
             Explore status pages <ArrowUpRight size={17} />
           </Link>
         </div>
@@ -483,7 +490,7 @@ export function Home({ user }: { user?: User }) {
             Add your website <ArrowUpRight size={19} />
           </button>
         ) : (
-          <Link className="button primary" to="/register">
+          <Link className="button primary" to={authPath('/login', addWebsiteTarget)}>
             Start monitoring <ArrowUpRight size={19} />
           </Link>
         )}

@@ -11,6 +11,7 @@ from backend.analytics import retry_delay
 from backend.common import logger, serialized
 from backend.config import settings
 from backend.db import engine, now
+from backend.email_templates import EmailContext
 from backend.mail import send_mail
 from backend.models import Incident, Monitor, NotificationDelivery, User, Website
 from backend.scheduler import effective_preference, notification_enabled
@@ -72,6 +73,7 @@ def message_for(identifier, token):
                 message["subject"],
                 message["text"],
                 f"<{delivery.id}@uptimepulse>",
+                message.get("template"),
                 delivery.attempts,
             )
         user = db.get(User, monitor.user_id)
@@ -84,17 +86,33 @@ def message_for(identifier, token):
         )
         title = f"AliveRadar | {'Outage detected' if delivery.event_type == 'OUTAGE' else 'Service recovered'}: {label}"
         website_info = ""
+        status = None
         if website:
             pages = list(db.scalars(select(Monitor).where(Monitor.website_id == website.id)))
             status = overall_status(pages) or "Waiting for checks"
             website_info = (
                 f"Website: {website.name}\nCurrent website status at delivery: {status}\n"
             )
+        template: EmailContext = {
+            "kind": "outage" if delivery.event_type == "OUTAGE" else "recovery",
+            "website_name": website.name if website else None,
+            "website_status": status if website else None,
+            "page_name": monitor.name,
+            "page_url": monitor.url,
+            "started_at": serialized(incident.started_at),
+            "resolved_at": serialized(incident.resolved_at),
+            "action_url": f"{settings().app_origin}/incidents/{incident.id}",
+        }
         body = f"{website_info}Page: {monitor.name}\nURL: {monitor.url}\nThis page is {'down' if delivery.event_type == 'OUTAGE' else 'back online'}.\n\nIncident started: {serialized(incident.started_at)}\nResolved: {serialized(incident.resolved_at)}\n\nView incident: {settings().app_origin}/incidents/{incident.id}"
         # Freeze the payload so retries reuse the same provider idempotency key and body.
-        delivery.message_payload = {"recipient": user.email, "subject": title, "text": body}
+        delivery.message_payload = {
+            "recipient": user.email,
+            "subject": title,
+            "text": body,
+            "template": template,
+        }
         db.commit()
-        return user.email, title, body, f"<{delivery.id}@uptimepulse>", delivery.attempts
+        return user.email, title, body, f"<{delivery.id}@uptimepulse>", template, delivery.attempts
 
 
 def finish_delivery(identifier, token, attempts, accepted):
@@ -126,11 +144,11 @@ async def process_notifications(sender=send_mail, enabled=None):
             return
         accepted = False
         try:
-            await asyncio.to_thread(sender, *message[:4])
+            await asyncio.to_thread(sender, *message[:5])
             accepted = True
         except Exception:
             logger.warning("Notification delivery failed; retry recorded")
-        await asyncio.to_thread(finish_delivery, identifier, token, message[4], accepted)
+        await asyncio.to_thread(finish_delivery, identifier, token, message[5], accepted)
 
     claims = await asyncio.to_thread(claim_deliveries)
     await asyncio.gather(*(deliver(*claim) for claim in claims))

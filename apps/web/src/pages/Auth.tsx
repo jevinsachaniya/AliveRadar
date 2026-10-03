@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, ShieldCheck, Activity, Globe, CheckCircle2 } from 'lucide-react';
 import { registrationSchema, loginSchema } from '../../../../packages/shared/src/validation';
-import { api, setCsrf } from '../api';
-import type { Auth as AuthData } from '../types';
+import { api } from '../api';
+import type { OtpChallenge } from '../types';
+import { saveChallenge } from '../otp';
+import { authPath } from '../authNavigation';
 import { Brand, FieldError } from '../components/ui';
 import { WebsiteFrame } from '../components/SiteLayout';
 export function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' | 'forgot' | 'reset' }) {
+  return (
+    <AuthShell>
+      {mode === 'forgot' || mode === 'reset' ? (
+        <ResetForm mode={mode} />
+      ) : (
+        <SignInForm mode={mode} />
+      )}
+    </AuthShell>
+  );
+}
+
+export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <WebsiteFrame>
       <div className="auth-layout">
@@ -68,13 +82,7 @@ export function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' | 'fo
           <Link to="/" className="mobile-auth-brand">
             <Brand />
           </Link>
-          <div className="auth-form-container">
-            {mode === 'forgot' || mode === 'reset' ? (
-              <ResetForm mode={mode} />
-            ) : (
-              <SignInForm mode={mode} />
-            )}
-          </div>
+          <div className="auth-form-container">{children}</div>
           <footer>
             AliveRadar <span>·</span> Every page, on your radar.
           </footer>
@@ -84,8 +92,9 @@ export function AuthPage({ mode = 'login' }: { mode?: 'login' | 'register' | 'fo
   );
 }
 function SignInForm({ mode }: { mode: 'login' | 'register' }) {
-  const navigate = useNavigate(),
-    client = useQueryClient();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get('next');
   const registration = mode === 'register';
   const schema = registration
     ? registrationSchema
@@ -100,23 +109,10 @@ function SignInForm({ mode }: { mode: 'login' | 'register' }) {
   });
   const mutation = useMutation({
     mutationFn: (body: z.output<typeof schema>) =>
-      api<AuthData>(`/auth/${registration ? 'register' : 'login'}`, { method: 'POST', body }),
+      api<OtpChallenge>(`/auth/${mode}`, { method: 'POST', body }),
     onSuccess: (data) => {
-      setCsrf(data.csrfToken);
-      sessionStorage.removeItem('pulse-signed-out');
-      client.clear();
-      client.setQueryData(['auth'], data);
-      navigate('/');
-    },
-  });
-  const demo = useMutation({
-    mutationFn: () => api<AuthData>('/auth/demo', { method: 'POST' }),
-    onSuccess: (data) => {
-      setCsrf(data.csrfToken);
-      sessionStorage.removeItem('pulse-signed-out');
-      client.clear();
-      client.setQueryData(['auth'], data);
-      navigate('/');
+      saveChallenge(data);
+      navigate(authPath(`/${mode}/otp`, next));
     },
   });
   return (
@@ -125,8 +121,8 @@ function SignInForm({ mode }: { mode: 'login' | 'register' }) {
       <h1>{registration ? 'Your peace of mind starts here.' : 'Good to see you again.'}</h1>
       <p className="auth-intro">
         {registration
-          ? 'Create your AliveRadar account and start watching your first website.'
-          : 'Sign in to AliveRadar to see how your websites and pages are doing.'}
+          ? 'Create your AliveRadar account. We’ll email a code to verify your address.'
+          : 'Enter your password, then verify the code sent to your email.'}
       </p>
       <form className="form" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         {registration && (
@@ -172,33 +168,10 @@ function SignInForm({ mode }: { mode: 'login' | 'register' }) {
       </form>
       <p className="auth-switch">
         {registration ? 'Already have an account?' : 'New around here?'}{' '}
-        <Link to={registration ? '/login' : '/register'}>
+        <Link to={authPath(registration ? '/login' : '/register', next)}>
           {registration ? 'Sign in' : 'Create an account'}
         </Link>
       </p>
-      {import.meta.env.DEV && (
-        <>
-          <div className="auth-or">
-            <span />
-            OR EXPLORE FIRST
-            <span />
-          </div>
-          <button
-            className="button secondary auth-submit"
-            disabled={demo.isPending}
-            onClick={() => demo.mutate()}
-          >
-            Explore demo monitoring
-            <ArrowRight size={15} />
-          </button>
-          <p className="demo-auth-note">Sample history, real local checks. No sign-up needed.</p>
-          {demo.error && (
-            <p className="field-error" role="alert">
-              {demo.error.message}
-            </p>
-          )}
-        </>
-      )}
     </>
   );
 }

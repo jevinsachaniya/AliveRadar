@@ -93,6 +93,7 @@ def main():
             "api",
             "worker",
             "migrate",
+            "release",
             "seed",
             "mock",
             "local-db",
@@ -113,6 +114,7 @@ def main():
             port=settings().port,
             reload=args.reload,
             access_log=False,
+            timeout_graceful_shutdown=40,
         )
     elif args.command == "worker":
         import asyncio
@@ -124,6 +126,10 @@ def main():
         from backend.migrate import migrate
 
         migrate()
+    elif args.command == "release":
+        from backend.deployment import release
+
+        release()
     elif args.command == "seed":
         from backend.seed import seed
 

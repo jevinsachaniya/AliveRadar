@@ -2,7 +2,20 @@
 
 The REST API is versioned at `/api/v1`. Swagger UI is at `/api/docs`, and `/api/v1/openapi.json` exposes request schemas and route descriptions. The error shape is `{ "error": { "message": "...", "details": [{ "field": "url", "message": "..." }] } }`; details are optional. Errors never expose stack traces or database queries.
 
-Register/login respond with `{ user, csrfToken }` and an HttpOnly session cookie. Send the cookie for private requests. Use `/auth/me` to restore the authenticated user and CSRF token after refresh. Every state-changing request must send `Origin` equal to APP_ORIGIN. Authenticated writes also require `X-CSRF-Token`. Tokens belong in memory; do not persist them in localStorage. The UI stores only its theme preference there.
+Register/login first respond with HTTP 202 and `{ token, email, purpose, expiresAt, resendAvailableAt }`. They do not authenticate the caller. Registration creates the account only after email verification; login checks the password before emailing a code.
+
+| Method | Path                        | Body / result                                                         |
+| ------ | --------------------------- | --------------------------------------------------------------------- |
+| POST   | `/auth/register`            | `{ name, email, password }` → pending registration challenge          |
+| POST   | `/auth/login`               | `{ email, password }` → pending login challenge                       |
+| POST   | `/auth/register/verify-otp` | `{ token, code }` → HTTP 201 `{ user, csrfToken }` and session cookie |
+| POST   | `/auth/login/verify-otp`    | `{ token, code }` → HTTP 200 `{ user, csrfToken }` and session cookie |
+| POST   | `/auth/register/resend-otp` | `{ token }` → refreshed registration challenge                        |
+| POST   | `/auth/login/resend-otp`    | `{ token }` → refreshed login challenge                               |
+
+Codes contain six digits, expire after five minutes, and are single use. Resends wait 60 seconds, replace the previous code, and allow at most three sends per challenge. Five incorrect attempts lock the challenge; resending does not reset attempts. A database-backed limit permits five emails per address and purpose per hour. Expired challenges require starting again. Failed email delivery returns 503 without creating an account or session.
+
+Only successful OTP verification returns an HttpOnly session cookie. Send it for private requests. `/auth/me` restores the user and CSRF token after refresh. Every state-changing request requires `Origin` equal to APP_ORIGIN; authenticated writes also require `X-CSRF-Token`. The UI keeps the CSRF token in memory and the pending opaque challenge in sessionStorage to survive refresh, never passwords or codes. No automatic demo login is available.
 
 Monitors support name, url, GET/HEAD method, intervalSeconds (30–86400), timeoutMs (1000–30000), expectedStatusCodes, failureThreshold, recoveryThreshold, and isActive. POST creates; PATCH accepts partial input; pause/resume are explicit POST operations; DELETE cascades related records. GET monitor lists accept page, limit (1–100), search, status, sort (name/createdAt/lastCheckedAt), and order (asc/desc). Responses have `{ items, total, page, limit }` and each item includes latestCheck and 24-hour analytics. Private URLs are visible only to the owner.
 

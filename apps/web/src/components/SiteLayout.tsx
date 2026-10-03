@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { ArrowRight, ArrowUpRight, Bell, Menu, Moon, Search, Settings, Sun, X } from 'lucide-react';
 import { Brand } from './ui';
 import type { User } from '../types';
+import { addWebsiteTarget, authPath } from '../authNavigation';
 
 const navigation = [
   { to: '/', label: 'Home' },
@@ -72,12 +73,26 @@ export function SiteHeader({ user }: { user?: User }) {
           aria-label="Main navigation"
           className={`site-navigation ${mobile ? 'is-open' : ''}`}
         >
-          {navigation.map(({ to, label }) => (
+          {(user
+            ? navigation
+            : [
+                { to: '/', label: 'Home' },
+                { to: '/overview', label: 'Overview' },
+                { to: '/#how-it-works', label: 'How it works' },
+                { to: '/#questions', label: 'Questions' },
+              ]
+          ).map(({ to, label }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
-              className={({ isActive }) => (isActive ? 'is-active' : '')}
+              className={({ isActive }) =>
+                isActive &&
+                (!to.includes('#') || location.hash === `#${to.split('#')[1]}`) &&
+                (to !== '/' || !location.hash)
+                  ? 'is-active'
+                  : ''
+              }
             >
               {label}
             </NavLink>
@@ -179,16 +194,16 @@ export function SiteFooter({ user }: { user?: User }) {
         <div className="site-footer-links">
           <span>Explore</span>
           <Link to="/">Home</Link>
-          <Link to="/websites">Website monitoring</Link>
-          <Link to="/incidents">Incident history</Link>
-          <Link to="/status-pages">Status pages</Link>
+          <Link to={user ? '/websites' : '/overview#page-health'}>Website monitoring</Link>
+          <Link to={user ? '/incidents' : '/overview#page-history'}>Incident history</Link>
+          <Link to={user ? '/status-pages' : '/overview#public-status'}>Status pages</Link>
         </div>
         <div className="site-footer-links">
           <span>Your account</span>
           <Link to={user ? '/settings' : '/register'}>
             {user ? 'Account settings' : 'Create an account'}
           </Link>
-          <Link to={user ? '/notifications' : '/login'}>Email notifications</Link>
+          <Link to={user ? '/notifications' : '/overview#email-alerts'}>Email notifications</Link>
           <Link to="/#how-it-works">How it works</Link>
           <Link to="/#questions">Common questions</Link>
         </div>
@@ -199,7 +214,7 @@ export function SiteFooter({ user }: { user?: User }) {
             <br />
             Always on our radar.
           </h3>
-          <Link to={user ? '/websites' : '/register'}>
+          <Link to={user ? addWebsiteTarget : authPath('/login', addWebsiteTarget)}>
             Start watching <ArrowRight size={17} />
           </Link>
         </div>

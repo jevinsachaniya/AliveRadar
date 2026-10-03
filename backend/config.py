@@ -8,13 +8,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", case_sensitive=False, hide_input_in_errors=True
+    )
 
     node_env: Literal["development", "test", "production"] = "development"
     database_url: str
     app_origin: str = "http://localhost:5173"
+    web_dist_dir: str = ""
     port: int = Field(default=3001, ge=1, le=65535)
     session_days: int = Field(default=7, ge=1, le=30)
+    auth_otp_secret: str = Field(default="", repr=False)
     worker_concurrency: int = Field(default=4, ge=1, le=32)
     worker_poll_ms: int = Field(default=2000, ge=250)
     retention_days: int = Field(default=90, ge=30)
@@ -38,6 +42,8 @@ class Settings(BaseSettings):
                 "APP_ORIGIN must be an exact HTTP/HTTPS origin without a trailing slash."
             )
         if self.node_env == "production":
+            if len(self.auth_otp_secret) < 32:
+                raise ValueError("Production AUTH_OTP_SECRET requires at least 32 characters.")
             if self.dev_mock_origin:
                 raise ValueError("Development mock exceptions are forbidden in production.")
             if url.scheme != "https":

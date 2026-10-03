@@ -1,22 +1,23 @@
 import { test, expect } from '@playwright/test';
+import { completeOtp } from './auth-helpers';
 
 test('create a website with independently checked URLs, show failed pages and manage alerts', async ({
   page,
 }, testInfo) => {
   const name = `Website journey ${testInfo.project.name} ${Date.now()}`;
+  const email = `website-${testInfo.project.name}-${Date.now()}@example.com`;
   await page.goto('/register');
   await page.getByLabel('Your name').fill('Website Tester');
-  await page
-    .getByLabel('Email address')
-    .fill(`website-${testInfo.project.name}-${Date.now()}@example.com`);
+  await page.getByLabel('Email address').fill(email);
   await page.getByLabel('Password', { exact: true }).fill('website-password-123');
   await page.getByRole('button', { name: 'Create your account' }).click();
+  await completeOtp(page, email);
   await expect(page.getByRole('heading', { name: 'Your website. On our radar.' })).toBeVisible();
   await page.goto('/websites');
   await page.getByRole('button', { name: 'Add website', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Website name', { exact: true }).fill(name);
-  await dialog.getByPlaceholder('https://example.com').fill('http://127.0.0.1:4005');
+  await dialog.getByPlaceholder('https://example.com').fill('http://127.0.0.1:4007');
   await dialog.getByLabel('Page 1 name', { exact: true }).fill('Home page');
   await dialog.getByLabel('Page 1 URL', { exact: true }).fill('/website');
   await dialog.getByLabel('Page 2 name', { exact: true }).fill('Checkout page');
@@ -62,7 +63,7 @@ test('create a website with independently checked URLs, show failed pages and ma
   await page.getByRole('button', { name: 'Edit monitor', exact: true }).click();
   await page
     .getByPlaceholder('https://example.com')
-    .fill('http://127.0.0.1:4005/website?status=503');
+    .fill('http://127.0.0.1:4007/website?status=503');
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.locator('.website-status')).toHaveText('DOWN', { timeout: 20000 });
   await page.getByRole('button', { name: 'Website settings' }).click();
@@ -90,7 +91,7 @@ test('create a website with independently checked URLs, show failed pages and ma
   await page.goto(websiteUrl);
   await page.getByRole('button', { name: 'Add page', exact: true }).click();
   await page.getByLabel('Monitor name').fill('About page');
-  await page.getByPlaceholder('https://example.com').fill('http://127.0.0.1:4005/about');
+  await page.getByPlaceholder('https://example.com').fill('http://127.0.0.1:4007/about');
   await page.getByRole('button', { name: 'Create monitor' }).click();
   await expect(page.getByRole('link', { name: 'About page', exact: true })).toBeVisible();
   for (const width of testInfo.project.name === 'mobile' ? [320, 390, 600] : [1024, 1280]) {

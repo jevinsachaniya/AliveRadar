@@ -182,6 +182,7 @@ def test_smtp_verified_tls_authentication_and_message(monkeypatch, secure):
         smtp_pass="fixture-secret",
         smtp_from="Alerts <owner@example.com>",
         node_env="development",
+        app_origin="http://localhost:5173",
     )
     monkeypatch.setattr(mail, "settings", lambda: cfg)
     events, messages = [], []
@@ -229,6 +230,18 @@ def test_smtp_verified_tls_authentication_and_message(monkeypatch, secure):
     )
     assert "Page &lt;down&gt;" in message.get_body(preferencelist=("html",)).get_content()
     assert "fixture-secret" not in message.as_string()
+    from backend.email_templates import LOGO_CID
+
+    markup = message.get_body(preferencelist=("html",)).get_content()
+    assert f'src="cid:{LOGO_CID}"' in markup
+    images = [part for part in message.walk() if part.get_content_type() == "image/png"]
+    assert len(images) == 1 and images[0]["Content-ID"] == f"<{LOGO_CID}>"
+    assert images[0].get_content_disposition() == "inline"
+    assert images[0].get_payload(decode=True) == mail.logo_bytes()
+    assert (
+        message.get_body(preferencelist=("plain",)).get_content().strip()
+        == "URL: https://example.com"
+    )
 
 
 def test_authenticated_smtp_refuses_plaintext_connection(monkeypatch):
@@ -243,6 +256,7 @@ def test_authenticated_smtp_refuses_plaintext_connection(monkeypatch):
         smtp_pass="fixture-secret",
         smtp_from="Alerts <owner@example.com>",
         node_env="development",
+        app_origin="http://localhost:5173",
     )
     monkeypatch.setattr(mail, "settings", lambda: cfg)
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Pencil, Trash2, Mail, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,6 +21,14 @@ import {
 
 export function Websites() {
   const [add, setAdd] = useState(false);
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('add') !== 'website') return;
+    setAdd(true);
+    const next = new URLSearchParams(params);
+    next.delete('add');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const websites = useQuery({
     queryKey: ['websites'],
     queryFn: () => api<{ items: Website[] }>('/websites'),

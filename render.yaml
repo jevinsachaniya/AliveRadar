@@ -1,0 +1,117 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+# Paid services are required for always-on monitoring and Brevo SMTP on Render.
+services:
+  - type: web
+    name: aliveradar-web
+    runtime: docker
+    region: singapore
+    plan: 0.5c-512mb
+    dockerfilePath: ./infra/render.Dockerfile
+    dockerContext: .
+    dockerCommand: python -m backend.cli api
+    preDeployCommand: python -m backend.cli release
+    healthCheckPath: /health/database
+    maxShutdownDelaySeconds: 60
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '10000'
+      - key: WEB_CONCURRENCY
+        value: '1'
+      - key: WEB_DIST_DIR
+        value: /app/dist/web
+      - key: APP_ORIGIN
+        fromService:
+          type: web
+          name: aliveradar-web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aliveradar-db
+          property: connectionString
+      - key: AUTH_OTP_SECRET
+        generateValue: true
+      - key: DEV_MOCK_ORIGIN
+        value: ''
+      - key: FORWARDED_ALLOW_IPS
+        value: '127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7'
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_SECURE
+        value: 'false'
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+  - type: worker
+    name: aliveradar-worker
+    runtime: docker
+    region: singapore
+    plan: 0.5c-512mb
+    dockerfilePath: ./infra/render.Dockerfile
+    dockerContext: .
+    dockerCommand: python -m backend.cli worker
+    preDeployCommand: python -m backend.cli release
+    maxShutdownDelaySeconds: 60
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aliveradar-db
+          property: connectionString
+      - key: APP_ORIGIN
+        fromService:
+          type: web
+          name: aliveradar-web
+          envVarKey: APP_ORIGIN
+      - key: AUTH_OTP_SECRET
+        fromService:
+          type: web
+          name: aliveradar-web
+          envVarKey: AUTH_OTP_SECRET
+      - key: DEV_MOCK_ORIGIN
+        value: ''
+      - key: WORKER_CONCURRENCY
+        value: '4'
+      - key: WORKER_POLL_MS
+        value: '2000'
+      - key: RETENTION_DAYS
+        value: '90'
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_SECURE
+        value: 'false'
+      - key: SMTP_USER
+        fromService:
+          type: web
+          name: aliveradar-web
+          envVarKey: SMTP_USER
+      - key: SMTP_PASS
+        fromService:
+          type: web
+          name: aliveradar-web
+          envVarKey: SMTP_PASS
+      - key: SMTP_FROM
+        fromService:
+          type: web
+          name: aliveradar-web
+          envVarKey: SMTP_FROM
+databases:
+  - name: aliveradar-db
+    region: singapore
+    plan: 0.1c-256mb
+    postgresMajorVersion: '18'
+    databaseName: aliveradar
+    user: aliveradar
+    diskSizeGB: 5
+    ipAllowList: []

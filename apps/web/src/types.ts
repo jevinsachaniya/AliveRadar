@@ -1,6 +1,13 @@
 export type Status = 'UP' | 'DOWN' | 'PAUSED' | 'PENDING' | 'UNKNOWN';
 export type User = { id: string; name: string; email: string; isDemo: boolean; createdAt: string };
 export type Auth = { user: User; csrfToken: string };
+export type OtpChallenge = {
+  token: string;
+  email: string;
+  purpose: 'login' | 'register';
+  expiresAt: string;
+  resendAvailableAt: string;
+};
 export type Check = {
   id: string;
   checkedAt: string;

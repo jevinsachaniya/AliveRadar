@@ -2374,3 +2374,51 @@ select:focus {
     gap: 8px;
   }
 }
+.otp-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  color: var(--purple);
+  background: var(--paper);
+}
+.otp-intro strong {
+  display: block;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.auth-form-container .form .otp-input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  font-family: ui-monospace, monospace;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  padding: 16px 8px;
+}
+.otp-expiry {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.otp-resend {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.otp-security {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 12px;
+}

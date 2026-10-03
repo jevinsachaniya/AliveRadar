@@ -19,14 +19,19 @@ def verify_legacy(connection):
     inspector = inspect(connection)
     for table in Base.metadata.sorted_tables:
         # Adoption verifies the immutable pre-Python baseline; later additions are migrated after stamping it.
-        if table.name == "Website":
+        if table.name in {"Website", "EmailOtpChallenge"}:
             continue
         if not inspector.has_table(table.name):
             raise RuntimeError(
                 f"Existing database lacks required table {table.name}; adoption stopped."
             )
         actual = {column["name"] for column in inspector.get_columns(table.name)}
-        additions = {"Monitor": {"websiteId"}, "NotificationDelivery": {"messagePayload"}}
+        additions = {
+            "Monitor": {"websiteId"},
+            "NotificationDelivery": {"messagePayload"},
+            "User": {"emailVerifiedAt"},
+            "Session": {"otpVerifiedAt"},
+        }
         expected = set(table.columns.keys()) - additions.get(table.name, set())
         if not expected.issubset(actual):
             raise RuntimeError(f"Existing {table.name} columns differ; adoption stopped.")

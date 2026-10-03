@@ -2,9 +2,11 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     Text,
@@ -35,8 +37,30 @@ class User(Base):
     email: Mapped[str] = mapped_column(Text, unique=True)
     password_hash: Mapped[str] = mapped_column("passwordHash", Text)
     is_demo: Mapped[bool] = mapped_column("isDemo", Boolean, default=False)
+    email_verified_at: Mapped[datetime | None] = mapped_column("emailVerifiedAt", DateTime)
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, default=now)
     updated_at: Mapped[datetime] = mapped_column("updatedAt", DateTime, default=now, onupdate=now)
+
+
+class EmailOtpChallenge(Base):
+    __tablename__ = "EmailOtpChallenge"
+    __table_args__ = (
+        CheckConstraint("purpose IN ('login', 'register')", name="EmailOtpChallenge_purpose"),
+        Index("EmailOtpChallenge_email_purpose_created", "email", "purpose", "createdAt"),
+    )
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    purpose: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    user_id: Mapped[str | None] = mapped_column("userId", ForeignKey("User.id", ondelete="CASCADE"))
+    name: Mapped[str | None] = mapped_column(Text)
+    password_hash: Mapped[str] = mapped_column("passwordHash", Text)
+    code_hash: Mapped[str] = mapped_column("codeHash", Text)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    send_count: Mapped[int] = mapped_column("sendCount", Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, default=now)
+    last_sent_at: Mapped[datetime] = mapped_column("lastSentAt", DateTime)
+    expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime, index=True)
+    consumed_at: Mapped[datetime | None] = mapped_column("consumedAt", DateTime)
 
 
 class AuthSession(Base):
@@ -44,6 +68,7 @@ class AuthSession(Base):
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     user_id: Mapped[str] = mapped_column("userId", ForeignKey("User.id", ondelete="CASCADE"))
     csrf_token: Mapped[str] = mapped_column("csrfToken", Text)
+    otp_verified_at: Mapped[datetime | None] = mapped_column("otpVerifiedAt", DateTime)
     expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, default=now)
 

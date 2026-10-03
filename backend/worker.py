@@ -11,7 +11,13 @@ from backend.checks import perform_check
 from backend.common import logger
 from backend.config import settings
 from backend.db import engine, new_id, now
-from backend.models import AuthSession, MonitorCheck, PasswordReset, WorkerHeartbeat
+from backend.models import (
+    AuthSession,
+    EmailOtpChallenge,
+    MonitorCheck,
+    PasswordReset,
+    WorkerHeartbeat,
+)
 from backend.notifications import process_notifications
 from backend.scheduler import claim_monitors, commit_check
 
@@ -34,6 +40,7 @@ def heartbeat(identifier, cleanup=False):
                 ),
                 (AuthSession, AuthSession.expires_at < now()),
                 (PasswordReset, PasswordReset.expires_at < now()),
+                (EmailOtpChallenge, EmailOtpChallenge.last_sent_at < now() - timedelta(hours=1)),
                 (WorkerHeartbeat, WorkerHeartbeat.updated_at < now() - timedelta(days=1)),
             ]:
                 db.execute(delete(model).where(where))

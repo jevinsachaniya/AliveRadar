@@ -1,27 +1,63 @@
-import html
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.utils import formatdate
+from functools import lru_cache
+from pathlib import Path
 
 from backend.config import settings
+from backend.email_templates import LOGO_CID, EmailContext, render_email
 
 
-def send_mail(recipient: str, subject: str, text: str, message_id: str | None = None):
+@lru_cache(maxsize=1)
+def logo_bytes() -> bytes:
+    return (Path(__file__).parent / "assets" / "aliveradar-mark.png").read_bytes()
+
+
+def build_message(
+    recipient: str,
+    subject: str,
+    text: str,
+    message_id: str | None = None,
+    template: EmailContext | None = None,
+) -> EmailMessage:
     cfg = settings()
-    if not cfg.email_configured:
-        raise RuntimeError(cfg.email_configuration_issue or "Email delivery is not configured.")
-    markup = f'<div style="font-family:Arial,sans-serif;max-width:560px;margin:32px auto;color:#153e30"><h2 style="color:#245747">AliveRadar</h2><p style="font-size:13px;color:#627268">Every page, on your radar.</p><h3>{html.escape(subject)}</h3><p style="line-height:1.7;white-space:pre-line">{html.escape(text)}</p><hr><p style="font-size:12px;color:#777">Manage preferences in your AliveRadar account.</p></div>'
     message = EmailMessage()
     message["From"] = cfg.smtp_from
     message["To"] = recipient
     message["Subject"] = subject
+    message["Date"] = formatdate(usegmt=True)
     if message_id:
         message["Message-ID"] = message_id
     message.set_content(text)
     message.add_alternative(
-        markup,
+        render_email(subject, text, cfg.app_origin, template),
         subtype="html",
     )
+    html_part = message.get_body(preferencelist=("html",))
+    assert html_part is not None
+    html_part.add_related(
+        logo_bytes(),
+        maintype="image",
+        subtype="png",
+        cid=f"<{LOGO_CID}>",
+        disposition="inline",
+        filename="aliveradar-mark.png",
+    )
+    return message
+
+
+def send_mail(
+    recipient: str,
+    subject: str,
+    text: str,
+    message_id: str | None = None,
+    template: EmailContext | None = None,
+):
+    cfg = settings()
+    if not cfg.email_configured:
+        raise RuntimeError(cfg.email_configuration_issue or "Email delivery is not configured.")
+    message = build_message(recipient, subject, text, message_id, template)
     transport = (
         smtplib.SMTP_SSL(
             cfg.smtp_host, cfg.smtp_port, timeout=15, context=ssl.create_default_context()

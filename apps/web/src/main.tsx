@@ -7,9 +7,13 @@ import { api, setCsrf, HttpError } from './api';
 import type { Auth } from './types';
 import { AppLayout } from './components/AppLayout';
 import { LoadingSkeleton, ErrorState } from './components/ui';
+import { authPath, returnTarget } from './authNavigation';
 import './styles.css';
 import './website.css';
 const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
+const PublicOverview = lazy(() =>
+  import('./pages/PublicOverview').then((m) => ({ default: m.PublicOverview })),
+);
 const Overview = lazy(() => import('./pages/Overview').then((m) => ({ default: m.Overview })));
 const Websites = lazy(() => import('./pages/Websites').then((m) => ({ default: m.Websites })));
 const WebsiteDetails = lazy(() =>
@@ -33,15 +37,21 @@ const Notifications = lazy(() =>
 );
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const AuthPage = lazy(() => import('./pages/Auth').then((m) => ({ default: m.AuthPage })));
+const VerifyOtp = lazy(() => import('./pages/VerifyOtp').then((m) => ({ default: m.VerifyOtp })));
 const client = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10000, refetchOnWindowFocus: true } },
 });
 function App() {
   const location = useLocation();
   const isPublic = location.pathname.startsWith('/status/');
-  const isAuth = ['/login', '/register', '/forgot-password', '/reset-password'].includes(
-    location.pathname,
-  );
+  const isAuth = [
+    '/login',
+    '/register',
+    '/login/otp',
+    '/register/otp',
+    '/forgot-password',
+    '/reset-password',
+  ].includes(location.pathname);
   const auth = useQuery({
     queryKey: ['auth'],
     retry: false,
@@ -53,11 +63,7 @@ function App() {
         return data;
       } catch (error) {
         if (error instanceof HttpError && error.status === 401) {
-          if (import.meta.env.DEV && !sessionStorage.getItem('pulse-signed-out') && !isAuth) {
-            const data = await api<Auth>('/auth/demo', { method: 'POST' });
-            setCsrf(data.csrfToken);
-            return data;
-          }
+          setCsrf('');
           return null;
         }
         throw error;
@@ -70,15 +76,33 @@ function App() {
         <Route path="/status/:slug" element={<PublicStatus />} />
       </Routes>
     );
-  if (isAuth)
+  if (location.pathname === '/' || location.pathname === '/overview') {
+    const user = auth.error ? undefined : auth.data?.user;
+    return (
+      <Routes>
+        <Route element={<AppLayout user={user} />}>
+          <Route index element={<Home user={user} />} />
+          <Route path="/overview" element={user ? <Overview user={user} /> : <PublicOverview />} />
+        </Route>
+      </Routes>
+    );
+  }
+  if (isAuth && !auth.isPending && !auth.error) {
+    if (auth.data && !['/forgot-password', '/reset-password'].includes(location.pathname))
+      return (
+        <Navigate to={returnTarget(new URLSearchParams(location.search).get('next'))} replace />
+      );
     return (
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/login/otp" element={<VerifyOtp key="login" purpose="login" />} />
+        <Route path="/register/otp" element={<VerifyOtp key="register" purpose="register" />} />
         <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
         <Route path="/reset-password" element={<AuthPage mode="reset" />} />
       </Routes>
     );
+  }
   if (auth.isPending)
     return (
       <div className="boot-loading">
@@ -93,12 +117,10 @@ function App() {
     );
   if (!auth.data)
     return (
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<Home />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Route>
-      </Routes>
+      <Navigate
+        to={authPath('/login', `${location.pathname}${location.search}${location.hash}`)}
+        replace
+      />
     );
   const user = auth.data.user;
   return (

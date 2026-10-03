@@ -17,6 +17,8 @@ from backend import auth, monitors, resources, websites
 from backend.common import ApiError, logger
 from backend.config import settings
 from backend.db import engine, now
+from backend.deployment import database_ready
+from backend.frontend import mount_website
 from backend.models import AuthSession, WorkerHeartbeat
 
 app = FastAPI(
@@ -79,7 +81,9 @@ def lookup_session(raw):
     with Session(engine()) as db:
         record = db.scalar(
             select(AuthSession).where(
-                AuthSession.id == auth.digest(raw), AuthSession.expires_at > now()
+                AuthSession.id == auth.digest(raw),
+                AuthSession.expires_at > now(),
+                AuthSession.otp_verified_at.is_not(None),
             )
         )
         return (
@@ -121,9 +125,21 @@ class SecurityMiddleware:
                         (b"x-content-type-options", b"nosniff"),
                         (b"x-frame-options", b"DENY"),
                         (b"referrer-policy", b"no-referrer"),
-                        (b"cache-control", b"private, no-store"),
                     ]
                 )
+                if not any(name.lower() == b"cache-control" for name, _ in headers):
+                    headers.append((b"cache-control", b"private, no-store"))
+                policy = (
+                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                    "img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+                )
+                if request.url.path == "/api/docs":
+                    policy = (
+                        "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+                        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+                        "img-src 'self' data: https://fastapi.tiangolo.com; frame-ancestors 'none'"
+                    )
+                headers.append((b"content-security-policy", policy.encode()))
                 if settings().node_env == "production":
                     headers.append(
                         (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
@@ -135,12 +151,21 @@ class SecurityMiddleware:
             await error(status, message)(scope, receive, secure_send)
 
         ip = scope.get("client", ("unknown",))[0]
-        if self.limited((ip, "global"), 240, 60):
+        is_api = request.url.path == "/api" or request.url.path.startswith("/api/")
+        if is_api and self.limited((ip, "global"), 240, 60):
             return await reject(429, "Too many requests. Try again shortly.")
         if request.url.path.startswith("/api/v1/auth/") and request.url.path.rsplit("/", 1)[
             -1
         ] not in {"me", "logout"}:
-            if self.limited((ip, "auth"), 40, 900):
+            action = request.url.path.rsplit("/", 1)[-1]
+            category, limit = (
+                ("otp-verify", 60)
+                if action == "verify-otp"
+                else ("otp-resend", 20)
+                if action == "resend-otp"
+                else ("auth", 40)
+            )
+            if self.limited((ip, category), limit, 900):
                 return await reject(429, "Too many sign-in attempts. Try again later.")
         chunks, size = [], 0
         while True:
@@ -153,7 +178,7 @@ class SecurityMiddleware:
             chunks.append(part.get("body", b""))
             if not part.get("more_body", False):
                 break
-        raw = request.cookies.get("pulse_session")
+        raw = request.cookies.get("pulse_session") if is_api else None
         scope.setdefault("state", {})["auth"] = (
             await asyncio.to_thread(lookup_session, raw) if raw else None
         )
@@ -196,6 +221,15 @@ def health():
     return {"status": "ok", "service": "api"}
 
 
+@app.get("/health/database", tags=["Health"])
+def database_health():
+    ready = database_ready()
+    return JSONResponse(
+        {"status": "ready" if ready else "degraded", "database": ready},
+        status_code=200 if ready else 503,
+    )
+
+
 @app.get("/ready", tags=["Health"])
 def ready():
     try:
@@ -216,3 +250,7 @@ def ready():
         return JSONResponse(
             {"status": "degraded", "database": False, "worker": False}, status_code=503
         )
+
+
+if settings().web_dist_dir:
+    mount_website(app, settings().web_dist_dir)

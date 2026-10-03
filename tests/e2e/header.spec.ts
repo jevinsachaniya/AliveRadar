@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { authenticatedPage } from './auth-helpers';
+
+test.beforeEach(async ({ page }) => {
+  await authenticatedPage(page, true);
+});
 
 test('header stays aligned and its menu works across screen widths', async ({ page }, testInfo) => {
   await page.goto('/');

@@ -2,7 +2,11 @@
 
 **Every page, on your radar.** AliveRadar monitors multiple named URLs for each website, tracks each page independently and shows the website’s overall UP, DEGRADED or DOWN status. Find failed pages by name, receive outage and recovery emails, and share public status pages.
 
-The website has a public homepage, top navigation and a React/TypeScript interface, a **Python FastAPI API**, PostgreSQL with SQLAlchemy/Alembic, and an independent **Python asyncio worker**. Authentication, monitor management, analytics, incidents, SMTP alerts and password reset are included.
+The website has a public homepage and feature overview, top navigation and a React/TypeScript interface, a **Python FastAPI API**, PostgreSQL with SQLAlchemy/Alembic, and an independent **Python asyncio worker**. Adding websites and accessing account monitoring use password plus email OTP authentication. Monitor management, analytics, incidents, SMTP alerts and password reset are included.
+
+## Deploy on Render
+
+Use the root [render.yaml](render.yaml) Blueprint for an HTTPS website/API, an always-on Python monitoring worker and private PostgreSQL. Production migrations and configuration checks run before deployment. See [the Render deployment guide](docs/RENDER.md) for the three Brevo values to enter, paid-plan requirements, verification and connecting your AliveRadar domain.
 
 ## Start on Windows
 
@@ -13,6 +17,8 @@ npm.cmd ci
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-python.ps1
 # Only for a fresh checkout; preserve your existing .env:
 Copy-Item .env.example .env
+# Generate a private AUTH_OTP_SECRET for .env and configure Brevo SMTP:
+python -c "import secrets; print(secrets.token_hex(32))"
 npm.cmd run db:local
 ```
 
@@ -20,17 +26,16 @@ Keep the database terminal open. In another terminal:
 
 ```powershell
 npm.cmd run db:migrate
-npm.cmd run db:seed
 npm.cmd run dev
 ```
 
-Open **http://localhost:5173**. The portal now uses a website layout with a homepage, service observations, how-it-works and FAQ sections, and a shared footer. See [website redesign](docs/WEBSITE_DESIGN.md). The development app opens a visibly labeled demo workspace. Historical demo samples are fixtures; new observations come from actual requests to the Python mock server. Register a separate account to start with empty history. The development demo endpoint is disabled in production.
+Open **http://localhost:5173** to browse the homepage, how-it-works, FAQ and public `/overview` without signing in. **Start monitoring** or **Add website** opens login. New users choose **Create an account** and verify their email on `/register/otp`; existing users enter their password and verify the emailed code on `/login/otp`. After verification, the Add Website form opens automatically. Monitoring and account data require a verified session; published status-page links are public. Codes last five minutes, with a 60-second resend cooldown and five wrong-code attempts. Automatic demo access is removed; optional seeded records remain preserved in the database. See [authentication API](docs/API.md) and [website design](docs/WEBSITE_DESIGN.md).
 
 If Python and uv are already installed, use `uv sync --extra dev --python 3.13` instead of the setup helper. On macOS/Linux use npm without `.cmd`, set `DATABASE_URL` to an existing PostgreSQL 14+ database, and skip `db:local`. `PG_BIN` optionally points the Python local database launcher to native PostgreSQL binaries. On Windows, the npm development dependency provides those binaries; no Node database service is used. Local data, Python runtime, virtual environment, and secrets are ignored by Git.
 
 ## Python migration and existing data
 
-All active API, monitoring, SMTP, database and maintenance code is in `backend/`. The React frontend and `/api/v1` contract remain compatible. SQLAlchemy maps the existing table and column names; IDs, bcrypt passwords, sessions, monitors, checks, incidents and status pages are preserved.
+All active API, monitoring, SMTP, database and maintenance code is in `backend/`. SQLAlchemy maps existing table and column names; IDs, bcrypt passwords, monitors, checks, incidents and status pages are preserved. The authentication contract now uses the two-step OTP flow described in [API usage](docs/API.md). Migration `0003_email_otp` retains old session records but requires a fresh OTP login before they can authorize access.
 
 `db:migrate` verifies the previous migration checksums, table columns and required indexes before recording an Alembic baseline. It refuses an unknown or modified legacy schema. Fresh installations apply the preserved SQL through Alembic. Do not edit the baseline SQL files: their bytes are used for verification. Later schema changes use Alembic revisions. See [migration details](docs/PYTHON_MIGRATION.md).
 
@@ -68,7 +73,7 @@ npm.cmd audit
 npm.cmd run audit:python
 ```
 
-Pytest covers backend behavior; Vitest/React Testing Library cover frontend forms. The integration runner creates and migrates a unique local `uptimepulse_test_*` database and drops only that database afterward. It refuses remote databases and production mode. PostgreSQL requires a local role with CREATEDB. Tests use real HTTP on port 4006 and actual SMTP on port 4026. They never truncate development data. Playwright desktop/mobile journeys require the development stack running and create dedicated test accounts. Their monitors and pages are removed; accounts remain. See [verification results](docs/PROGRESS.md).
+Pytest covers backend behavior; Vitest/React Testing Library cover frontend forms. The integration runner creates and migrates a unique local `uptimepulse_test_*` database and drops only that database afterward. It refuses remote databases and production mode. PostgreSQL requires a local role with CREATEDB. Tests use real HTTP on port 4006 and actual SMTP on port 4026. Playwright starts its own isolated `uptimepulse_e2e_*` database, API (3002), worker, frontend (5175), mock target (4007), SMTP receiver (4027) and loopback mail collector (4030). Teardown stops only its own processes and drops only its own test database. Browser journeys complete real OTP verification using captured local email. Test mail never uses Brevo, and development accounts/history are never reset. See [verification results](docs/PROGRESS.md).
 
 ## Docker and production
 
@@ -90,6 +95,8 @@ The overall website status is **UP** when all active pages are up, **DEGRADED** 
 
 Email uses **Brevo SMTP**. Set `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_PORT=587`, `SMTP_SECURE=false`, your Brevo `SMTP_USER`, an SMTP key in `SMTP_PASS`, and `SMTP_FROM=AliveRadar <your-verified-sender>`. The app upgrades port 587 to verified STARTTLS before authentication; `SMTP_SECURE=false` means it does not start with implicit SSL. Use port 465 with `SMTP_SECURE=true` for implicit TLS. SMTP keys and HTTP API keys are different. See [Brevo SMTP setup](https://developers.brevo.com/docs/smtp-integration).
 
+Outage, recovery, password-reset and OTP verification messages use branded HTML templates with the supplied A/R logo embedded as an inline image, plus a plain-text alternative. See [email templates](docs/EMAIL_TEMPLATES.md) for previews, bundled assets and deployment details.
+
 Restart API and worker after updating `.env`, and enable website/account notifications. The Notifications page shows Brevo as the provider. Placeholder sender addresses and incomplete Brevo credentials leave delivery disabled and queued events pending. Other SMTP providers remain compatible. Website email permission and the effective global/per-page preference both apply. Enabling website emails explicitly also enables account outage/recovery preferences. Each confirmed page outage creates one alert with the website name, page name, URL and website status; continued failures do not create repeated alerts. Recovery has its own notification. There are six attempts with bounded exponential backoff. Frozen outbox payloads and stable Message-ID keep retries consistent, although SMTP cannot guarantee exactly-once delivery after a crash. Provider acceptance is recorded; inbox placement is not guaranteed. Authenticated SMTP always requires TLS.
 
 For a development outage, monitor `http://127.0.0.1:4005/website?status=503`. `?delay=15000` demonstrates a timeout. Only the configured development mock origin bypasses private-address blocking; production rejects that setting. Public destinations use DNS-pinned requests, verified TLS, and no redirects. Defaults confirm an outage after two failed checks and recover after one success.
@@ -102,5 +109,3 @@ Uptime measures successful observed checks within UTC rolling windows. Missing h
 - `packages/shared/`: frontend input validation.
 
 Billing, teams, maintenance scheduling and multiple monitoring regions are outside this MVP.
-#   A l i v e R a d a r  
- 

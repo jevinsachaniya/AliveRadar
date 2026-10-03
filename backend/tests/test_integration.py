@@ -4,6 +4,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from email import policy
+from email.parser import Parser
 from hashlib import sha256
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,9 +24,11 @@ from backend.auth import digest
 from backend.checks import CheckResult, perform_check
 from backend.config import settings
 from backend.db import engine, now
+from backend.deployment import database_ready
 from backend.migrate import migrate, verify_legacy
 from backend.models import (
     AuthSession,
+    EmailOtpChallenge,
     Incident,
     Monitor,
     MonitorCheck,
@@ -96,9 +100,106 @@ def servers():
 @pytest.fixture(autouse=True)
 def clean():
     with Session(engine()) as db:
+        db.execute(delete(EmailOtpChallenge))
         db.execute(delete(User))
         db.commit()
     state.update(private_hits=0, reject_mail=False, mail=[], hosts=[])
+    middleware = app.middleware_stack
+    while middleware is not None:
+        if hasattr(middleware, "limits"):
+            middleware.limits.clear()
+        middleware = getattr(middleware, "app", getattr(middleware, "inner", None))
+
+
+def latest_otp():
+    message = Parser(policy=policy.default).parsestr(state["mail"][-1])
+    return re.search(
+        r"code is: ([0-9]{6})", message.get_body(preferencelist=("plain",)).get_content()
+    ).group(1)
+
+
+def test_render_database_health_does_not_require_running_worker():
+    from backend.deployment import schema_current, schema_heads
+    from backend.models import WorkerHeartbeat
+
+    with Session(engine()) as db:
+        db.execute(delete(WorkerHeartbeat))
+        db.commit()
+    client = TestClient(app)
+    assert database_ready()
+    assert client.get("/health/database").json() == {"status": "ready", "database": True}
+    assert client.get("/ready").status_code == 503
+    # Release validates the exact revision; health stays available across rolling migrations.
+    try:
+        with engine().begin() as connection:
+            connection.execute(text("UPDATE alembic_version SET version_num = 'unknown_revision'"))
+        assert not schema_current()
+        assert client.get("/health/database").status_code == 200
+    finally:
+        with engine().begin() as connection:
+            connection.execute(
+                text("UPDATE alembic_version SET version_num = :revision"),
+                {"revision": next(iter(schema_heads()))},
+            )
+    assert client.get("/health/database").status_code == 200
+
+
+def test_production_email_otp_uses_secure_cookie_and_origin(monkeypatch):
+    from backend import auth, mail
+    from backend.deployment import release
+
+    cfg = settings()
+    origin = "https://aliveradar-web.onrender.com"
+    monkeypatch.setattr(cfg, "node_env", "production")
+    monkeypatch.setattr(cfg, "app_origin", origin)
+    release()
+    release()
+    assert not state["mail"]
+
+    def capture_mail(recipient, subject, body, message_id=None, template=None):
+        # Capture production MIME at the delivery boundary; never send real email in tests.
+        state["mail"].append(
+            mail.build_message(recipient, subject, body, message_id, template).as_string()
+        )
+
+    monkeypatch.setattr(auth, "send_mail", capture_mail)
+    client = TestClient(app, base_url=origin)
+    payload = {
+        "name": "Production User",
+        "email": "production@example.com",
+        "password": "a-secure-password-123",
+    }
+    assert (
+        client.post("/api/v1/auth/register", headers={"Origin": ORIGIN}, json=payload).status_code
+        == 403
+    )
+    pending = client.post("/api/v1/auth/register", headers={"Origin": origin}, json=payload)
+    assert pending.status_code == 202, pending.text
+    assert not client.cookies.get("pulse_session")
+    response = client.post(
+        "/api/v1/auth/register/verify-otp",
+        headers={"Origin": origin},
+        json={"token": pending.json()["token"], "code": latest_otp()},
+    )
+    assert response.status_code == 201, response.text
+    cookie = response.headers["set-cookie"].lower()
+    assert "secure" in cookie and "httponly" in cookie and "samesite=lax" in cookie
+    assert client.get("/api/v1/auth/me").status_code == 200
+    assert (
+        client.post(
+            "/api/v1/auth/logout",
+            headers={"Origin": origin, "X-CSRF-Token": response.json()["csrfToken"]},
+        ).status_code
+        == 204
+    )
+
+
+def complete_otp(client, challenge, purpose="register"):
+    return client.post(
+        f"/api/v1/auth/{purpose}/verify-otp",
+        headers={"Origin": ORIGIN},
+        json={"token": challenge["token"], "code": latest_otp()},
+    )
 
 
 def account(email="a@example.com"):
@@ -108,8 +209,11 @@ def account(email="a@example.com"):
         headers={"Origin": ORIGIN},
         json={"name": "Test User", "email": email, "password": "a-secure-password-123"},
     )
+    assert response.status_code == 202, response.text
+    response = complete_otp(client, response.json())
     assert response.status_code == 201, response.text
     client.headers.update({"Origin": ORIGIN, "X-CSRF-Token": response.json()["csrfToken"]})
+    state["mail"].clear()
     return client, response.json()["user"]["id"]
 
 
@@ -298,6 +402,7 @@ async def test_website_email_switch_and_immutable_retry_payload():
         db.commit()
     await process_notifications(sender, True)
     assert len(sent) == 2 and sent[0] == sent[1]
+    assert sent[0][4]["kind"] == "recovery" and sent[0][4]["page_name"] != "Renamed page"
 
 
 def test_authentication():
@@ -320,10 +425,183 @@ def test_authentication():
         headers={"Origin": ORIGIN},
         json={"email": "a@example.com", "password": "a-secure-password-123"},
     )
-    assert login.status_code == 200
-    assert "HttpOnly" in login.headers["set-cookie"]
+    assert login.status_code == 202
+    assert "set-cookie" not in login.headers
+    assert other.get("/api/v1/auth/me").status_code == 401
+    verified = complete_otp(other, login.json(), "login")
+    assert verified.status_code == 200
+    assert "HttpOnly" in verified.headers["set-cookie"]
     assert client.post("/api/v1/auth/logout").status_code == 204
     assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def start_registration(client, email="pending@example.com"):
+    return client.post(
+        "/api/v1/auth/register",
+        headers={"Origin": ORIGIN},
+        json={"name": "Pending User", "email": email, "password": "a-secure-password-123"},
+    )
+
+
+def age_challenge(token, **values):
+    with Session(engine()) as db:
+        db.execute(
+            update(EmailOtpChallenge).where(EmailOtpChallenge.id == digest(token)).values(**values)
+        )
+        db.commit()
+
+
+def test_registration_waits_for_email_and_single_use_code():
+    client = TestClient(app)
+    response = start_registration(client)
+    assert response.status_code == 202
+    challenge, code = response.json(), latest_otp()
+    assert code not in response.text and "set-cookie" not in response.headers
+    assert count(User) == 0 and count(AuthSession) == 0
+    assert client.get("/api/v1/monitors").status_code == 401
+    with Session(engine()) as db:
+        stored = db.get(EmailOtpChallenge, digest(challenge["token"]))
+        assert stored.id != challenge["token"] and stored.code_hash != code
+        assert stored.password_hash != "a-secure-password-123"
+    mail = Parser(policy=policy.default).parsestr(state["mail"][-1])
+    markup = mail.get_body(preferencelist=("html",)).get_content()
+    assert code in markup and "5 minutes" in markup and "cid:aliveradar-logo@inline" in markup
+    assert (
+        client.post(
+            "/api/v1/auth/login/verify-otp",
+            headers={"Origin": ORIGIN},
+            json={"token": challenge["token"], "code": code},
+        ).status_code
+        == 400
+    )
+    verified = complete_otp(client, challenge)
+    assert verified.status_code == 201 and count(User) == 1 and count(AuthSession) == 1
+    client.headers.update({"Origin": ORIGIN, "X-CSRF-Token": verified.json()["csrfToken"]})
+    assert complete_otp(client, challenge).status_code == 400
+    assert start_registration(TestClient(app)).status_code == 409
+
+
+def test_wrong_otp_lockout_and_expiry():
+    client = TestClient(app)
+    challenge = start_registration(client).json()
+    code = latest_otp()
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(5):
+        assert (
+            client.post(
+                "/api/v1/auth/register/verify-otp",
+                headers={"Origin": ORIGIN},
+                json={"token": challenge["token"], "code": wrong},
+            ).status_code
+            == 400
+        )
+    assert complete_otp(client, challenge).status_code == 400
+    assert count(User) == 0 and count(AuthSession) == 0
+    challenge = start_registration(client, "expired@example.com").json()
+    age_challenge(challenge["token"], expires_at=now() - timedelta(seconds=1))
+    assert complete_otp(client, challenge).status_code == 400
+    assert (
+        client.post(
+            "/api/v1/auth/register/resend-otp",
+            headers={"Origin": ORIGIN},
+            json={"token": challenge["token"]},
+        ).status_code
+        == 400
+    )
+
+
+def test_resend_cooldown_invalidates_old_code_and_keeps_attempt_budget():
+    client = TestClient(app)
+    challenge = start_registration(client).json()
+    old = latest_otp()
+    payload = {"token": challenge["token"]}
+    assert (
+        client.post(
+            "/api/v1/auth/register/resend-otp", headers={"Origin": ORIGIN}, json=payload
+        ).status_code
+        == 429
+    )
+    assert start_registration(client).status_code == 429
+    age_challenge(challenge["token"], last_sent_at=now() - timedelta(seconds=61), attempts=2)
+    response = client.post(
+        "/api/v1/auth/register/resend-otp", headers={"Origin": ORIGIN}, json=payload
+    )
+    assert response.status_code == 200
+    assert (
+        client.post(
+            "/api/v1/auth/register/verify-otp",
+            headers={"Origin": ORIGIN},
+            json={**payload, "code": old},
+        ).status_code
+        == 400
+    )
+    with Session(engine()) as db:
+        stored = db.get(EmailOtpChallenge, digest(challenge["token"]))
+        assert stored.attempts == 3 and stored.send_count == 2
+    assert complete_otp(client, challenge).status_code == 201
+
+
+def test_otp_delivery_failure_never_creates_account_or_session():
+    state["reject_mail"] = True
+    response = start_registration(TestClient(app))
+    assert response.status_code == 503 and "set-cookie" not in response.headers
+    assert count(User) == 0 and count(AuthSession) == 0
+    with Session(engine()) as db:
+        assert db.scalar(select(EmailOtpChallenge)).consumed_at is not None
+
+
+def test_otp_issuance_limit_survives_new_challenges():
+    client = TestClient(app)
+    for _ in range(5):
+        challenge = start_registration(client).json()
+        assert "token" in challenge
+        age_challenge(challenge["token"], last_sent_at=now() - timedelta(seconds=61))
+    assert start_registration(client).status_code == 429
+    assert count(User) == 0
+
+
+def test_otp_parallel_replay_creates_only_one_session():
+    from concurrent.futures import ThreadPoolExecutor
+
+    client = TestClient(app)
+    challenge = start_registration(client).json()
+    payload = {"token": challenge["token"], "code": latest_otp()}
+
+    def verify(_):
+        with TestClient(app) as parallel:
+            return parallel.post(
+                "/api/v1/auth/register/verify-otp", headers={"Origin": ORIGIN}, json=payload
+            ).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(verify, [1, 2])) == [201, 400]
+    assert count(User) == 1 and count(AuthSession) == 1
+
+
+def test_old_sessions_demo_and_password_reset_cannot_bypass_otp():
+    client, uid = account()
+    with Session(engine()) as db:
+        db.execute(update(AuthSession).values(otp_verified_at=None))
+        db.commit()
+    assert client.get("/api/v1/auth/me").status_code == 401
+    assert client.post("/api/v1/auth/demo").status_code == 404
+    login = client.post(
+        "/api/v1/auth/login", json={"email": "a@example.com", "password": "a-secure-password-123"}
+    ).json()
+    with Session(engine()) as db:
+        db.add(
+            PasswordReset(id=digest("b" * 64), user_id=uid, expires_at=now() + timedelta(minutes=1))
+        )
+        db.commit()
+    assert (
+        client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": "b" * 64, "password": "different-password-123"},
+        ).status_code
+        == 200
+    )
+    assert complete_otp(client, login, "login").status_code == 400
+    assert count(AuthSession) == 0
 
 
 def test_origin_csrf_and_body_limit():
@@ -559,6 +837,11 @@ async def test_smtp_acceptance_and_rejection():
         and "Outage detected" in state["mail"][0]
         and "text/html" in state["mail"][0]
     )
+    message = Parser(policy=policy.default).parsestr(state["mail"][0])
+    markup = message.get_body(preferencelist=("html",)).get_content()
+    assert "An outage was detected." in markup and "View incident" in markup
+    assert 'src="cid:aliveradar-logo@inline"' in markup
+    assert len([part for part in message.walk() if part.get_content_type() == "image/png"]) == 1
     with Session(engine()) as db:
         assert db.scalar(select(NotificationDelivery)).status == "DELIVERED"
     result(identifier)
@@ -573,6 +856,37 @@ async def test_smtp_acceptance_and_rejection():
     assert len(state["mail"]) == 1
 
 
+async def test_legacy_frozen_email_payload_keeps_content_and_gets_inline_logo():
+    client, _ = account()
+    identifier = add(client)
+    enable(client)
+    result(identifier, True)
+    result(identifier, True)
+    payload = {
+        "recipient": "saved-recipient@example.com",
+        "subject": "Saved alert",
+        "text": "Keep the original alert text.",
+    }
+    with Session(engine()) as db:
+        delivery = db.scalar(select(NotificationDelivery))
+        delivery.message_payload = payload
+        delivery_id = delivery.id
+        db.commit()
+    await process_notifications()
+    assert len(state["mail"]) == 1
+    message = Parser(policy=policy.default).parsestr(state["mail"][0])
+    assert message["To"] == payload["recipient"] and message["Subject"] == payload["subject"]
+    assert message["Message-ID"] == f"<{delivery_id}@uptimepulse>"
+    assert message.get_body(preferencelist=("plain",)).get_content().strip() == payload["text"]
+    assert (
+        'src="cid:aliveradar-logo@inline"'
+        in message.get_body(preferencelist=("html",)).get_content()
+    )
+    with Session(engine()) as db:
+        delivery = db.get(NotificationDelivery, delivery_id)
+        assert delivery.status == "DELIVERED" and delivery.message_payload == payload
+
+
 def test_smtp_password_reset():
     client, _ = account()
     assert (
@@ -580,6 +894,10 @@ def test_smtp_password_reset():
         == 200
     )
     assert len(state["mail"]) == 1
+    message = Parser(policy=policy.default).parsestr(state["mail"][0])
+    markup = message.get_body(preferencelist=("html",)).get_content()
+    assert "Reset your password." in markup and "30 minutes" in markup
+    assert 'src="cid:aliveradar-logo@inline"' in markup
     decoded = state["mail"][0].replace("=\r\n", "").replace("=3D", "=")
     token = re.search(r"token=([a-f0-9]{64})", decoded).group(1)
     response = TestClient(app).post(
@@ -730,6 +1048,9 @@ def test_legacy_schema_adoption_preserves_data():
     result(identifier)
     root = Path(__file__).resolve().parents[1] / "migrations/sql"
     with engine().begin() as connection:
+        connection.execute(text('DROP TABLE "EmailOtpChallenge"'))
+        connection.execute(text('ALTER TABLE "User" DROP COLUMN "emailVerifiedAt"'))
+        connection.execute(text('ALTER TABLE "Session" DROP COLUMN "otpVerifiedAt"'))
         connection.execute(text('ALTER TABLE "Monitor" DROP COLUMN "websiteId"'))
         connection.execute(text('ALTER TABLE "NotificationDelivery" DROP COLUMN "messagePayload"'))
         connection.execute(text('DROP TABLE "Website"'))
@@ -748,6 +1069,12 @@ def test_legacy_schema_adoption_preserves_data():
                 {"name": name, "checksum": sha256((root / filename).read_bytes()).hexdigest()},
             )
     migrate()
+    assert client.get("/api/v1/auth/me").status_code == 401
+    response = client.post(
+        "/api/v1/auth/login", json={"email": "a@example.com", "password": "a-secure-password-123"}
+    )
+    verified = complete_otp(client, response.json(), "login")
+    client.headers["X-CSRF-Token"] = verified.json()["csrfToken"]
     assert client.get("/api/v1/auth/me").json()["user"]["id"] == uid
     assert (
         client.get(f"/api/v1/monitors/{identifier}").status_code == 200 and count(MonitorCheck) == 1

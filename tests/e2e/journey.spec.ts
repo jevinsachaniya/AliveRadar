@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { authenticatedPage, completeOtp } from './auth-helpers';
 test('register, monitor lifecycle, and published status page', async ({ page }, testInfo) => {
   const slug = `journey-${testInfo.project.name}-${Date.now()}`;
   await page.goto('/register');
@@ -6,13 +7,14 @@ test('register, monitor lifecycle, and published status page', async ({ page }, 
   await page.getByLabel('Email address').fill(`${slug}@example.com`);
   await page.getByLabel('Password', { exact: true }).fill('journey-password-123');
   await page.getByRole('button', { name: 'Create your account' }).click();
+  await completeOtp(page, `${slug}@example.com`);
   await expect(page.getByRole('heading', { name: 'Your website. On our radar.' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('website-home.png'), fullPage: true });
   await page.screenshot({ path: testInfo.outputPath('website-home-viewport.png') });
   await expect(page.getByRole('heading', { name: 'Meet your first monitor' })).toBeVisible();
   await page.getByRole('button', { name: 'Add monitor', exact: true }).click();
   await page.getByLabel('Monitor name').fill('Journey endpoint');
-  await page.getByPlaceholder('https://example.com').fill('http://127.0.0.1:4005/website');
+  await page.getByPlaceholder('https://example.com').fill('http://127.0.0.1:4007/website');
   await page.getByRole('button', { name: 'Create monitor' }).click();
   await page.goto('/monitors');
   await expect(page.getByRole('link', { name: 'Journey endpoint', exact: true })).toBeVisible();
@@ -45,7 +47,7 @@ test('register, monitor lifecycle, and published status page', async ({ page }, 
   await page.goto(`/status/${slug}`);
   await expect(page.getByRole('heading', { name: 'Journey published status' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Journey updated' })).toBeVisible();
-  await expect(page.getByText('127.0.0.1:4005')).toHaveCount(0);
+  await expect(page.getByText('127.0.0.1:4007')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('website-public-status.png'), fullPage: true });
   await page.goto('/monitors');
   await page.getByLabel('Actions for Journey updated').click();
@@ -69,11 +71,12 @@ test('register, monitor lifecycle, and published status page', async ({ page }, 
   await page.getByLabel('Email address').fill(`${slug}@example.com`);
   await page.getByLabel('Password', { exact: true }).fill('journey-password-123');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await completeOtp(page, `${slug}@example.com`, 'login');
   await expect(page.getByRole('heading', { name: 'Your website. On our radar.' })).toBeVisible();
 });
-test('demo layout, filters, theme, and navigation', async ({ page }, testInfo) => {
+test('authenticated layout, filters, theme, and navigation', async ({ page }, testInfo) => {
+  await authenticatedPage(page, true);
   await page.goto('/');
-  await expect(page.getByText('Demo workspace', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your website. On our radar.' })).toBeVisible();
   await page.goto('/monitors');
   const overviewResponse = await page.request.get('/api/v1/overview');
@@ -115,16 +118,10 @@ test('demo layout, filters, theme, and navigation', async ({ page }, testInfo) =
   }
 });
 
-test('public website homepage, questions and responsive navigation', async ({ page }, testInfo) => {
-  await page.goto('/');
-  await page.goto('/settings');
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+test('website questions, sign out and guest navigation', async ({ page }, testInfo) => {
+  await authenticatedPage(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Your website. On our radar.' })).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Start monitoring', exact: true }).first(),
-  ).toBeVisible();
   await expect(page.locator('.sidebar')).toHaveCount(0);
   await page.getByText('Does my browser need to stay open?', { exact: true }).click();
   await expect(
@@ -148,7 +145,13 @@ test('public website homepage, questions and responsive navigation', async ({ pa
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
   }
-  await page.goto('/register');
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Your website. On our radar.' })).toBeVisible();
+  await expect(page).toHaveURL('http://localhost:5175/');
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Create an account', exact: true }).first().click();
   await expect(page.getByLabel('Your name')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('website-register.png'), fullPage: true });
 });

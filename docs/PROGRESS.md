@@ -1,6 +1,33 @@
 # Verification progress
 
-The website redesign is complete. AliveRadar now has an original public homepage, horizontal navigation, explanatory sections and a shared footer. Warm cream, forest green and lime styling carries through monitoring, incidents, settings, authentication and public status pages. Existing data and Python monitoring services are preserved. See [website design](WEBSITE_DESIGN.md) for references and implementation details.
+AliveRadar's homepage, feature overview, how-it-works and FAQ are public. Login is required to add a website and access account monitoring, with separate email verification pages for registration and sign-in. After authentication, the requested Add Website form opens automatically. Published status-page links remain public. Warm cream, forest green and lime styling carries through the portal and branded OTP emails. Existing data and Python monitoring services are preserved. See [website design](WEBSITE_DESIGN.md) for implementation details.
+
+## Render production configuration on 3 October 2026
+
+Added a Render Blueprint for a paid same-origin website/API, separate always-on monitoring worker and private managed PostgreSQL 18 in Singapore. A dedicated multi-stage Dockerfile builds React with Node 24 and runs Python 3.13 as a non-root user with hash-pinned dependencies, bundled migrations and inline email logo. Local secrets are excluded. SMTP values are entered in Render and shared with the worker; the OTP secret is generated once. Production release jobs validate configuration, serialize migrations and verify the exact schema before starting services. Database health is independent of worker startup and revision checks during rolling releases. API/worker shutdown budgets allow active checks to finish.
+
+The Python API optionally serves compiled frontend assets with security headers, correct cache policies and SPA refresh support. API/health paths, missing assets and hidden files retain JSON errors. Frontend/static and health requests do not look up session cookies or consume API rate limits. The existing Nginx Compose configuration also forwards the new database health route. See [Render setup and troubleshooting](RENDER.md).
+
+- **92 Python unit checks and 37 disposable PostgreSQL integration checks passed**, including static-route precedence, safe fallback, startup configuration, Render database URLs, migration idempotence, release validation, database failures and production secure-cookie OTP authentication. Production OTP messages are captured at the delivery boundary; the other SMTP integration checks use a local receiver.
+- Production frontend build, TypeScript/mypy, ESLint/Ruff and source formatting passed. The Blueprint passed validation against Render's downloaded official JSON schema. Hash-verified Linux Python 3.13 wheels resolved for the production dependency lock.
+- A temporary production-mode API and independent worker, using a fresh isolated database and compiled frontend, passed desktop/mobile browser smoke checks at 1280 and 390 px: public browsing, route refresh, Add Website login continuation, private-route guards, register refresh, logo delivery, missing API JSON errors, no script errors and no page overflow. Temporary processes and databases were removed; existing local development data was preserved.
+- Docker and Render CLI are unavailable here, so no Docker image build or cloud deployment has been claimed. Render provisioning, production SMTP delivery, billing and DNS still require verification after creating the Blueprint. Schema validation does not replace Render's account/workspace validation.
+
+## Public browsing and gated monitoring on 3 October 2026
+
+The homepage and guest `/overview` explain the website's monitoring features without requiring an account. Header/footer links let visitors browse features, how-it-works, FAQ, alerts and status-page information. Guest browsing makes no private monitoring requests and remains available during an auth-service outage. Start monitoring/Add Website prompts login; switching to registration, refreshing the OTP page and verifying the code preserve the pending Add Website action. Both successful signup and login reopen the Add Website form. Return paths are restricted to internal monitoring/account routes and reject external URLs or auth loops. Authenticated overview and account data continue to require a verified session.
+
+**21 desktop/mobile browser checks passed**, with three desktop skips for mobile-only cases, covering public browsing, auth outages, OTP, action continuation and the existing monitoring workflows. **21 frontend checks passed** when run sequentially with a 15-second test timeout. TypeScript/mypy, lint, formatting and production build passed. Live public pages were checked at 320, 390 and 1280 px; local screenshots are in `.local/public-browsing/`.
+
+## Email OTP authentication on 3 October 2026
+
+Registration creates an account only after email OTP verification. Login requires the password followed by an emailed code. Separate `/register/otp` and `/login/otp` pages support refresh, numeric entry, expiry, resend cooldown, delivery errors and restarting with another address. Codes expire after five minutes, allow five wrong attempts, and cannot be replayed. Resends replace the old code without resetting the guess limit. Database locks enforce single consumption and per-address email limits across API processes. The old development demo endpoint and automatic fallback are removed.
+
+Migration `0003_email_otp` preserves accounts and monitoring data while requiring legacy sessions to log in again. Applying it locally preserved all 40 existing users, four monitors, 2,842 checks, five incidents and one status page. A private OTP signing secret is configured; the existing Brevo credentials and sender are preserved. The restarted API/database/worker report ready, and the live guest homepage redirects to login.
+
+- **64 Python unit tests, 35 isolated database/SMTP integration tests and 11 frontend tests passed.** Security cases cover pending accounts, incorrect and expired codes, resend invalidation, mail rejection, issuance limits, parallel replay, legacy-session rejection and reset revocation.
+- **17 desktop/mobile browser tests passed**, with three desktop skips for mobile-only cases. Two additional focused auth checks passed after adjusting the OTP input size and guest header. Registration, logout, password login, separate OTP pages, private-route guards and existing monitoring workflows passed.
+- TypeScript/mypy, lint, formatting and production build passed. Mobile OTP layouts were inspected at 320 px; branded login/registration email previews passed containment at 320 and 760 px. Test email used local SMTP only. Previews are in `.local/email-previews/login-otp.html` and `register-otp.html`.
 
 ## AliveRadar branding on 3 October 2026
 
@@ -17,6 +44,16 @@ API documentation, monitoring User-Agent, password-reset emails and new outage/r
 Replaced the generic radar icon with the supplied A/R artwork, adapted to forest green, emerald and soft lime using the built-in imagegen tool. The selected transparent PNG is stored in `apps/web/public/brand/aliveradar-mark.png`; shared header/footer/authentication branding, homepage illustration, favicon and Apple touch icon use it. The original download is preserved. See [logo asset and final prompt](BRAND_LOGO.md).
 
 **4 focused desktop/mobile Playwright checks passed**, including header geometry at 320–1600 px, public homepage/navigation and registration layout. Image decoding, PNG favicon loading and dark-mode readability were verified, including mobile containment at 320 px. Light/dark desktop and mobile screenshots were inspected. TypeScript/mypy, lint, formatting and production build passed; the logo is included in the production output.
+
+### Branded email templates and inline logo
+
+Added matching AliveRadar outage, recovery and password-reset templates with a forest-green masthead, supplied A/R logo, cream detail cards and lime action buttons. Incident emails show named pages, URLs, website status and UTC times. Reset messages include expiry, a reset button, fallback link and security guidance. All messages retain plain-text alternatives.
+
+The logo is attached as an inline PNG using MIME Content-ID, with a matching backend asset bundled for standalone Python/Docker releases. New outbox messages freeze structured template data for consistent retries; existing frozen messages still work through the branded fallback. No database migration or development-data reset was needed. See [email templates](EMAIL_TEMPLATES.md).
+
+- **64 Python unit tests and 28 disposable PostgreSQL integration tests passed.** Coverage includes inline logo bytes/references, HTML escaping, action-link origin checks, legacy frozen messages, immutable retry details, real local SMTP outage/reset delivery and provider rejection handling.
+- The three sample email layouts fit at **760, 390 and 320 px**. Desktop/mobile screenshots were inspected; sample HTML, `.eml` messages and screenshots are in `.local/email-previews/`. No external test email was sent.
+- TypeScript/mypy, lint and formatting passed. API and worker were restarted, and readiness confirms both the database and worker are healthy.
 
 ## Website verification on 2 October 2026
 

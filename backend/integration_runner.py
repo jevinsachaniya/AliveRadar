@@ -48,6 +48,7 @@ def run():
                 "SMTP_USER": "",
                 "SMTP_PASS": "",
                 "SMTP_FROM": "AliveRadar <alerts@example.com>",
+                "AUTH_OTP_SECRET": "integration-only-secret-" + uuid4().hex,
             }
             return subprocess.run(
                 [sys.executable, "-m", "pytest", "-m", "integration", *sys.argv[2:]],

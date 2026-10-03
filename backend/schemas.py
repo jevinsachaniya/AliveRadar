@@ -99,6 +99,14 @@ class Login(Input):
         return value.lower()
 
 
+class OtpToken(Input):
+    token: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class OtpVerification(OtpToken):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
 class ResetRequest(Input):
     email: EmailStr
 
