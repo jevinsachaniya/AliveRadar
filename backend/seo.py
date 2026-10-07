@@ -4,7 +4,8 @@ import re
 from hashlib import sha256
 from html import escape
 from pathlib import Path
-from xml.etree.ElementTree import Element, SubElement, tostring
+from urllib.parse import urlsplit
+from xml.etree.ElementTree import Element, SubElement, indent, tostring
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
@@ -24,24 +25,52 @@ def indexing_enabled() -> bool:
     return cfg.node_env == "production" and cfg.seo_indexable
 
 
+def crawler_files(origin: str, indexable: bool) -> dict[str, bytes]:
+    url = urlsplit(origin)
+    if (
+        url.scheme not in {"http", "https"}
+        or not url.hostname
+        or url.username
+        or url.password
+        or origin != f"{url.scheme}://{url.netloc}"
+        or any(character.isspace() for character in origin)
+    ):
+        raise ValueError(
+            "Use an exact HTTP/HTTPS origin without credentials, paths or trailing slash."
+        )
+    rules = "Allow: /" if indexable else "Disallow: /"
+    robots = f"User-agent: *\n{rules}\n\nSitemap: {origin}/sitemap.xml\n"
+    root = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
+    if indexable:
+        for path in PUBLIC_PATHS:
+            SubElement(SubElement(root, "url"), "loc").text = origin + path
+    indent(root, space="  ")
+    return {
+        "robots.txt": robots.encode("utf-8"),
+        "sitemap.xml": tostring(root, encoding="utf-8", xml_declaration=True) + b"\n",
+    }
+
+
+def export_crawler_files(directory: Path, origin: str, indexable: bool):
+    files = crawler_files(origin, indexable)
+    directory.mkdir(parents=True, exist_ok=True)
+    for filename, content in files.items():
+        (directory / filename).write_bytes(content)
+
+
 def install_seo_routes(app: FastAPI):
     @app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
     def robots():
-        rules = "Allow: /" if indexing_enabled() else "Disallow: /"
         return Response(
-            f"User-agent: *\n{rules}\nSitemap: {settings().app_origin}/sitemap.xml\n",
+            crawler_files(settings().app_origin, indexing_enabled())["robots.txt"],
             media_type="text/plain",
             headers={"Cache-Control": "public, max-age=300"},
         )
 
     @app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
     def sitemap():
-        root = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
-        if indexing_enabled():
-            for path in PUBLIC_PATHS:
-                SubElement(SubElement(root, "url"), "loc").text = settings().app_origin + path
         return Response(
-            tostring(root, encoding="utf-8", xml_declaration=True),
+            crawler_files(settings().app_origin, indexing_enabled())["sitemap.xml"],
             media_type="application/xml",
             headers={"Cache-Control": "public, max-age=300"},
         )

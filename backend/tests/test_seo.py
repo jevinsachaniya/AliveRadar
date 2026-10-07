@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException
 
 from backend.app import SecurityMiddleware, http_error
 from backend.frontend import mount_website
-from backend.seo import install_seo_routes
+from backend.seo import export_crawler_files, install_seo_routes
 
 
 class Document(HTMLParser):
@@ -143,6 +143,30 @@ def test_sitemap_lists_only_canonical_public_urls_and_robots_allow_resources(sit
     ] == [cfg.app_origin + "/", cfg.app_origin + "/overview"]
     robots = client.get("/robots.txt")
     assert "Allow: /" in robots.text and f"Sitemap: {cfg.app_origin}/sitemap.xml" in robots.text
+
+
+@pytest.mark.parametrize("indexable", [True, False])
+def test_exported_crawler_files_match_served_policy_and_head_responses(site, tmp_path, indexable):
+    client, cfg = site
+    cfg.seo_indexable = indexable
+    export_crawler_files(tmp_path, cfg.app_origin, indexable)
+    for filename, media_type in [("robots.txt", "text/plain"), ("sitemap.xml", "application/xml")]:
+        response = client.get(f"/{filename}")
+        assert response.content == (tmp_path / filename).read_bytes()
+        assert response.headers["content-type"].startswith(media_type)
+        head = client.head(f"/{filename}")
+        assert head.status_code == 200 and not head.content
+        assert head.headers["content-length"] == response.headers["content-length"]
+
+
+def test_runtime_domain_and_preview_policy_override_exported_production_files(site, seo_directory):
+    client, cfg = site
+    export_crawler_files(seo_directory, "https://aliveradar.com", True)
+    assert f"Sitemap: {cfg.app_origin}/sitemap.xml" in client.get("/robots.txt").text
+    assert "https://aliveradar.com" not in client.get("/sitemap.xml").text
+    cfg.seo_indexable = False
+    assert "Disallow: /" in client.get("/robots.txt").text
+    assert not list(fromstring(client.get("/sitemap.xml").content))
 
 
 @pytest.mark.parametrize("mode,indexable", [("development", True), ("production", False)])

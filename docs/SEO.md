@@ -1,5 +1,23 @@
 # AliveRadar SEO
 
+## Sitemap and robots files for aliveradar.com
+
+The generated files are [robots.txt](../apps/web/public/robots.txt) and [sitemap.xml](../apps/web/public/sitemap.xml). Vite copies them to the website root during builds. The sitemap contains only `https://aliveradar.com/` and `https://aliveradar.com/overview`; login, OTP, account data and user status pages remain excluded. Account HTML also carries `noindex`. Robots allows crawlers to read pages and their indexing directives, including the CSS and JavaScript needed to render public pages.
+
+Regenerate the files after changing the canonical domain or public route list:
+
+```sh
+npm run seo:files -- --origin https://aliveradar.com --indexable
+```
+
+The command generates UTF-8 files using the same rules as the backend routes. It does not connect to the database, send email or change `.env`. Without explicit options, it uses `APP_ORIGIN` and the current production indexing policy. Use `--no-indexable` for a preview export: robots blocks crawling and the sitemap is empty. `--output-directory` optionally changes the export folder.
+
+For the actual production domain, configure `APP_ORIGIN=https://aliveradar.com`, `NODE_ENV=production` and `SEO_INDEXABLE=true`, then rebuild/deploy after the domain is connected. The Python routes at `/robots.txt` and `/sitemap.xml` take precedence over exported static files and use these runtime settings, so local and Render test installs keep their own origin and noindex policy. Do not enable production indexing on the temporary Render test site.
+
+After deployment, verify `https://aliveradar.com/robots.txt` and `https://aliveradar.com/sitemap.xml`, then submit the sitemap in Search Console. Only canonical public URLs are included, following [Google's sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap). No estimated modification dates, priorities or change frequencies are added.
+
+## Existing page SEO
+
 Production builds pre-render the public homepage and overview from the actual React components. Crawlers and visitors receive headings, feature text, links and native FAQ answers before JavaScript runs. React hydrates that HTML for interaction. This follows [Google's JavaScript SEO guidance](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics).
 
 | Pages                                                   | Search behavior                                          |

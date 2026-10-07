@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from datetime import timedelta
+from pathlib import Path
 from urllib.request import urlopen
 
 from sqlalchemy import func, select
@@ -96,6 +97,7 @@ def main():
             "worker",
             "migrate",
             "release",
+            "seo-files",
             "seed",
             "mock",
             "local-db",
@@ -106,6 +108,14 @@ def main():
         ],
     )
     parser.add_argument("--reload", action="store_true")
+    parser.add_argument("--origin", help="Canonical origin for seo-files; defaults to APP_ORIGIN")
+    parser.add_argument(
+        "--indexable",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="SEO export policy; defaults to the current production indexing setting",
+    )
+    parser.add_argument("--output-directory", type=Path, default=Path("apps/web/public"))
     args = parser.parse_args()
     if args.command in {"api", "free-server"}:
         import uvicorn
@@ -131,9 +141,9 @@ def main():
     elif args.command == "worker":
         import asyncio
 
-        from backend.worker import run
+        from backend.worker import run as worker_run
 
-        asyncio.run(run())
+        asyncio.run(worker_run())
     elif args.command == "migrate":
         from backend.migrate import migrate
 
@@ -142,22 +152,29 @@ def main():
         from backend.deployment import release
 
         release()
+    elif args.command == "seo-files":
+        from backend.seo import export_crawler_files, indexing_enabled
+
+        origin = args.origin if args.origin is not None else settings().app_origin
+        indexable = indexing_enabled() if args.indexable is None else args.indexable
+        export_crawler_files(args.output_directory, origin, indexable)
+        print(f"Generated robots.txt and sitemap.xml in {args.output_directory} for {origin}.")
     elif args.command == "seed":
         from backend.seed import seed
 
         seed()
     elif args.command == "mock":
-        from backend.mock import run
+        from backend.mock import run as mock_run
 
-        run()
+        mock_run()
     elif args.command == "local-db":
-        from backend.local_db import run
+        from backend.local_db import run as local_db_run
 
-        run()
+        local_db_run()
     elif args.command == "test-integration":
-        from backend.integration_runner import run
+        from backend.integration_runner import run as integration_run
 
-        sys.exit(run())
+        sys.exit(integration_run())
     else:
         {"health": health, "worker-health": worker_health, "verify-worker": verify_worker}[
             args.command
