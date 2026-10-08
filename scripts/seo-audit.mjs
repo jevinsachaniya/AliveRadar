@@ -59,6 +59,9 @@ for (const path of publicPages) {
   assert(types.has('WebSite'), `${path} schema is missing WebSite.`);
   assert(types.has('WebPage'), `${path} schema is missing WebPage.`);
   if (path === '/') assert(types.has('FAQPage'), 'Homepage schema is missing its FAQPage.');
+  if (path === '/blog') assert(types.has('Blog'), 'Blog landing schema is missing Blog.');
+  if (path === '/blog/devsload-com')
+    assert(types.has('Article'), 'Blog post schema is missing Article.');
   if (path !== '/')
     assert(types.has('BreadcrumbList'), `${path} schema is missing BreadcrumbList.`);
 }

@@ -13,6 +13,8 @@ def seo_directory(tmp_path):
         ("overview.html", "Independent page checks"),
         ("about.html", "Every page deserves to stay on your radar"),
         ("contact.html", "Let's keep your important pages visible"),
+        ("blog.html", "Useful notes for people who keep websites online"),
+        ("devsload-com.html", "DevsLoad.com: simple online tools for everyday digital work"),
         ("404.html", "Page not found"),
     ]:
         (tmp_path / ".prerender" / filename).write_text(
@@ -38,6 +40,16 @@ def seo_directory(tmp_path):
         "/contact": {
             "title": "Contact AliveRadar | Website Monitoring Support",
             "description": "Contact AliveRadar.",
+            "indexable": True,
+        },
+        "/blog": {
+            "title": "AliveRadar Blog | Website Monitoring Notes",
+            "description": "Website monitoring notes and resources from AliveRadar.",
+            "indexable": True,
+        },
+        "/blog/devsload-com": {
+            "title": "DevsLoad.com | AliveRadar",
+            "description": "A guide to DevsLoad.",
             "indexable": True,
         },
         **{
@@ -74,13 +86,15 @@ def seo_directory(tmp_path):
             "indexable": False,
             "notFound": True,
         },
-        "publicPages": ["/", "/overview", "/about", "/contact"],
+        "publicPages": ["/", "/overview", "/about", "/contact", "/blog", "/blog/devsload-com"],
         "socialImage": "/brand/aliveradar-mark.png",
         "prerender": {
             "/": ".prerender/home.html",
             "/overview": ".prerender/overview.html",
             "/about": ".prerender/about.html",
             "/contact": ".prerender/contact.html",
+            "/blog": ".prerender/blog.html",
+            "/blog/devsload-com": ".prerender/devsload-com.html",
             "/not-found": ".prerender/404.html",
         },
         "schemas": {

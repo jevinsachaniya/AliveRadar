@@ -3,7 +3,14 @@ import { useEffect } from 'react';
 export const ORIGIN_TOKEN = '__ALIVERADAR_ORIGIN__';
 export const socialImage = '/brand/aliveradar-mark.png';
 export const socialImageAlt = 'AliveRadar logo for website uptime monitoring';
-export const publicPages = ['/', '/overview', '/about', '/contact'] as const;
+export const publicPages = [
+  '/',
+  '/overview',
+  '/about',
+  '/contact',
+  '/blog',
+  '/blog/devsload-com',
+] as const;
 export type Metadata = {
   title: string;
   description: string;
@@ -63,6 +70,18 @@ export const pages: Record<string, Metadata> = {
       'Contact AliveRadar for help with website uptime monitoring, page status, downtime alerts, product feedback or support.',
     indexable: true,
   },
+  '/blog': {
+    title: 'AliveRadar Blog | Website Monitoring Notes',
+    description:
+      'Website uptime monitoring notes, response time guidance and status communication resources from AliveRadar.',
+    indexable: true,
+  },
+  '/blog/devsload-com': {
+    title: 'DevsLoad.com: Simple Online Tools for Everyday Tasks | AliveRadar',
+    description:
+      'An AliveRadar journal look at DevsLoad, a growing collection of simple free online tools, and why dependable page availability matters.',
+    indexable: true,
+  },
   ...Object.fromEntries(
     [
       ['/login', 'Sign in'],
@@ -120,6 +139,8 @@ export function structuredData(path: string, origin: string) {
     '/overview': 'Website monitoring features',
     '/about': 'About AliveRadar',
     '/contact': 'Contact AliveRadar',
+    '/blog': 'AliveRadar Blog',
+    '/blog/devsload-com': 'DevsLoad.com: Simple Online Tools for Everyday Tasks',
   } as const;
   const graph: Array<Record<string, unknown>> = [
     {
@@ -157,12 +178,25 @@ export function structuredData(path: string, origin: string) {
   ];
   const breadcrumbName = breadcrumbs[path as keyof typeof breadcrumbs];
   if (breadcrumbName) {
+    const itemListElement = [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
+    ];
+    if (path === '/blog/devsload-com')
+      itemListElement.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'AliveRadar Blog',
+        item: `${origin}/blog`,
+      });
+    itemListElement.push({
+      '@type': 'ListItem',
+      position: itemListElement.length + 1,
+      name: breadcrumbName,
+      item: `${origin}${path}`,
+    });
     graph.push({
       '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
-        { '@type': 'ListItem', position: 2, name: breadcrumbName, item: `${origin}${path}` },
-      ],
+      itemListElement,
     });
   }
   if (path === '/') {
@@ -173,6 +207,28 @@ export function structuredData(path: string, origin: string) {
         name,
         acceptedAnswer: { '@type': 'Answer', text },
       })),
+    });
+  }
+  if (path === '/blog') {
+    graph.push({
+      '@type': 'Blog',
+      '@id': `${origin}/blog#blog`,
+      name: 'AliveRadar Blog',
+      url: `${origin}/blog`,
+      publisher: { '@id': `${origin}/#organization` },
+      blogPost: { '@id': `${origin}/blog/devsload-com#article` },
+    });
+  }
+  if (path === '/blog/devsload-com') {
+    graph.push({
+      '@type': 'Article',
+      '@id': `${origin}/blog/devsload-com#article`,
+      headline: 'DevsLoad.com: Simple Online Tools for Everyday Digital Work',
+      description: pages[path].description,
+      mainEntityOfPage: { '@id': `${origin}${path}#webpage` },
+      author: { '@id': `${origin}/#organization` },
+      publisher: { '@id': `${origin}/#organization` },
+      inLanguage: 'en',
     });
   }
   return {

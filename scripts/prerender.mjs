@@ -30,6 +30,8 @@ try {
     ['/overview', 'overview.html'],
     ['/about', 'about.html'],
     ['/contact', 'contact.html'],
+    ['/blog', 'blog.html'],
+    ['/blog/devsload-com', 'devsload-com.html'],
     ['/not-found', '404.html'],
   ]) {
     const markup = seo.renderPage(path);

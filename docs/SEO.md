@@ -2,7 +2,7 @@
 
 ## Sitemap and robots files for aliveradar.com
 
-The generated files are [robots.txt](../apps/web/public/robots.txt) and [sitemap.xml](../apps/web/public/sitemap.xml). Vite copies them to the website root during builds. The sitemap contains the four public canonical pages: `/`, `/overview`, `/about`, and `/contact`. Login, OTP, account data and user status pages remain excluded. Account HTML also carries `noindex`. Robots allows crawlers to read public pages and their rendering resources while excluding API and health endpoints.
+The generated files are [robots.txt](../apps/web/public/robots.txt) and [sitemap.xml](../apps/web/public/sitemap.xml). Vite copies them to the website root during builds. The sitemap contains six public canonical pages: `/`, `/overview`, `/about`, `/contact`, `/blog`, and `/blog/devsload-com`. Login, OTP, account data and user status pages remain excluded. Account HTML also carries `noindex`. Robots allows crawlers to read public pages and their rendering resources while excluding API and health endpoints.
 
 Regenerate the files after changing the canonical domain or public route list:
 
@@ -18,15 +18,15 @@ After deployment, verify `https://aliveradar.com/robots.txt` and `https://aliver
 
 ## Existing page SEO
 
-Production builds pre-render the public homepage, feature overview, About and Contact pages from the actual React components. Crawlers and visitors receive headings, feature text, links and native FAQ answers before JavaScript runs. React hydrates that HTML for interaction. This follows [Google's JavaScript SEO guidance](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics).
+Production builds pre-render the public homepage, feature overview, About, Contact, blog landing and published blog article pages from the actual React components. Crawlers and visitors receive headings, feature text, links and native FAQ answers before JavaScript runs. React hydrates that HTML for interaction. This follows [Google's JavaScript SEO guidance](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics).
 
-| Pages                                                   | Search behavior                                          |
-| ------------------------------------------------------- | -------------------------------------------------------- |
-| `/`, `/overview`, `/about`, `/contact`                  | Indexable in production; included in sitemap             |
-| Login, register, OTP, password reset and account routes | Noindex; excluded from sitemap                           |
-| User-published `/status/:slug`                          | Publicly shareable; excluded from marketing search index |
-| Unknown website routes                                  | HTTP 404, recovery page, noindex and no canonical        |
-| API and health endpoints                                | `X-Robots-Tag: noindex, nofollow`                        |
+| Pages                                                                 | Search behavior                                          |
+| --------------------------------------------------------------------- | -------------------------------------------------------- |
+| `/`, `/overview`, `/about`, `/contact`, `/blog`, `/blog/devsload-com` | Indexable in production; included in sitemap             |
+| Login, register, OTP, password reset and account routes               | Noindex; excluded from sitemap                           |
+| User-published `/status/:slug`                                        | Publicly shareable; excluded from marketing search index |
+| Unknown website routes                                                | HTTP 404, recovery page, noindex and no canonical        |
+| API and health endpoints                                              | `X-Robots-Tag: noindex, nofollow`                        |
 
 Public pages have unique titles/descriptions, canonicals, Open Graph/Twitter previews using the AliveRadar logo, and Organization/WebSite/WebPage JSON-LD. The homepage also provides FAQPage markup, while non-home public pages include breadcrumbs. Browser navigation updates metadata without duplicates. Authentication protects account data; indexing rules do not provide access control.
 
@@ -41,7 +41,7 @@ Canonical URLs, sitemap entries, structured data and social images use **`APP_OR
 
 Local development remains excluded. The example local environment sets `SEO_INDEXABLE=false`; manually deploying from it requires enabling indexing. Render's Blueprint sets the production value separately. When disabled, pages use noindex, robots disallows crawling and the sitemap is empty.
 
-Production `robots.txt` permits crawling, including CSS/JavaScript, links to `/sitemap.xml`, and excludes API and health endpoints. Account pages remain crawlable so their noindex directives can be read. The XML sitemap lists the four public canonical URLs. See [Google's sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) and [noindex rules](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
+Production `robots.txt` permits crawling, including CSS/JavaScript, links to `/sitemap.xml`, and excludes API and health endpoints. Account pages remain crawlable so their noindex directives can be read. The XML sitemap lists the six public canonical URLs. See [Google's sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) and [noindex rules](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
 
 ## Deploy and verify
 

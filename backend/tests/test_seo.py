@@ -54,6 +54,8 @@ def site(seo_directory, monkeypatch):
         ("/overview", "Independent page checks"),
         ("/about", "Every page deserves to stay on your radar"),
         ("/contact", "Let's keep your important pages visible"),
+        ("/blog", "Useful notes for people who keep websites online"),
+        ("/blog/devsload-com", "DevsLoad.com: simple online tools for everyday digital work"),
     ],
 )
 def test_public_html_has_content_and_route_metadata_without_javascript(site, path, heading):
@@ -154,6 +156,8 @@ def test_sitemap_lists_only_canonical_public_urls_and_robots_allow_resources(sit
         cfg.app_origin + "/overview",
         cfg.app_origin + "/about",
         cfg.app_origin + "/contact",
+        cfg.app_origin + "/blog",
+        cfg.app_origin + "/blog/devsload-com",
     ]
     robots = client.get("/robots.txt")
     assert "Allow: /" in robots.text and f"Sitemap: {cfg.app_origin}/sitemap.xml" in robots.text

@@ -10,6 +10,8 @@ import { authPath, returnTarget } from './authNavigation';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
+import { Blog } from './pages/Blog';
+import { DevsloadPost } from './pages/BlogPost';
 import { PublicOverview } from './pages/PublicOverview';
 import { NotFound } from './pages/NotFound';
 import { pageMetadata, useSeo } from './seo';
@@ -80,7 +82,11 @@ function App() {
         <Route path="/status/:slug" element={<PublicStatus />} />
       </Routes>
     );
-  if (['/', '/overview', '/about', '/contact'].includes(location.pathname)) {
+  if (
+    ['/', '/overview', '/about', '/contact', '/blog', '/blog/devsload-com'].includes(
+      location.pathname,
+    )
+  ) {
     const user = auth.error ? undefined : auth.data?.user;
     return (
       <Routes>
@@ -89,6 +95,8 @@ function App() {
           <Route path="/overview" element={user ? <Overview user={user} /> : <PublicOverview />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/devsload-com" element={<DevsloadPost />} />
         </Route>
       </Routes>
     );

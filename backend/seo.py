@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from backend.config import settings
 
-PUBLIC_PATHS = ("/", "/overview", "/about", "/contact")
+PUBLIC_PATHS = ("/", "/overview", "/about", "/contact", "/blog", "/blog/devsload-com")
 ORIGIN_TOKEN = "__ALIVERADAR_ORIGIN__"
 CSP = (
     "default-src 'self'; script-src 'self'{script}; style-src 'self' 'unsafe-inline'; "

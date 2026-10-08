@@ -94,6 +94,7 @@ export function SiteHeader({ user }: { user?: User }) {
                 { to: '/overview', label: 'Overview' },
                 { to: '/about', label: 'About' },
                 { to: '/contact', label: 'Contact' },
+                { to: '/blog', label: 'Blog' },
                 { to: '/#how-it-works', label: 'How it works' },
                 { to: '/#questions', label: 'Questions' },
               ]
@@ -215,6 +216,7 @@ export function SiteFooter({ user }: { user?: User }) {
           <Link to={user ? '/status-pages' : '/overview#public-status'}>Status pages</Link>
           <Link to="/about">About AliveRadar</Link>
           <Link to="/contact">Contact us</Link>
+          <Link to="/blog">Blog</Link>
         </div>
         <div className="site-footer-links">
           <span>Your account</span>
