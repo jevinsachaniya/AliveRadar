@@ -48,7 +48,13 @@ def site(seo_directory, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "path,heading", [("/", "Website uptime monitoring"), ("/overview", "Independent page checks")]
+    "path,heading",
+    [
+        ("/", "Website uptime monitoring"),
+        ("/overview", "Independent page checks"),
+        ("/about", "Every page deserves to stay on your radar"),
+        ("/contact", "Let's keep your important pages visible"),
+    ],
 )
 def test_public_html_has_content_and_route_metadata_without_javascript(site, path, heading):
     client, cfg = site
@@ -60,6 +66,9 @@ def test_public_html_has_content_and_route_metadata_without_javascript(site, pat
     assert doc.meta["og:url"] == doc.links["canonical"]
     assert doc.meta["og:image"] == cfg.app_origin + "/brand/aliveradar-mark.png"
     assert doc.meta["twitter:image"] == doc.meta["og:image"]
+    assert doc.meta["og:image:alt"] == "AliveRadar website monitoring logo"
+    assert doc.meta["twitter:image:alt"] == "AliveRadar website monitoring logo"
+    assert doc.meta["og:locale"] == "en_US"
     assert doc.meta["robots"].startswith("index, follow")
     assert response.headers["x-robots-tag"] == doc.meta["robots"]
     assert "utm_source" not in response.text and "__ALIVERADAR_ORIGIN__" not in response.text
@@ -140,9 +149,16 @@ def test_sitemap_lists_only_canonical_public_urls_and_robots_allow_resources(sit
     root = fromstring(response.content)
     assert [
         node.text for node in root.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")
-    ] == [cfg.app_origin + "/", cfg.app_origin + "/overview"]
+    ] == [
+        cfg.app_origin + "/",
+        cfg.app_origin + "/overview",
+        cfg.app_origin + "/about",
+        cfg.app_origin + "/contact",
+    ]
     robots = client.get("/robots.txt")
     assert "Allow: /" in robots.text and f"Sitemap: {cfg.app_origin}/sitemap.xml" in robots.text
+    for path in ["/api/", "/health", "/health/database", "/ready", "/openapi.json"]:
+        assert f"Disallow: {path}" in robots.text
 
 
 @pytest.mark.parametrize("indexable", [True, False])

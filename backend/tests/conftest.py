@@ -11,6 +11,8 @@ def seo_directory(tmp_path):
     for filename, text in [
         ("home.html", "Website uptime monitoring"),
         ("overview.html", "Independent page checks"),
+        ("about.html", "Every page deserves to stay on your radar"),
+        ("contact.html", "Let's keep your important pages visible"),
         ("404.html", "Page not found"),
     ]:
         (tmp_path / ".prerender" / filename).write_text(
@@ -26,6 +28,16 @@ def seo_directory(tmp_path):
         "/overview": {
             "title": "Features & Alerts | AliveRadar",
             "description": 'Explore page monitoring and "email alerts".',
+            "indexable": True,
+        },
+        "/about": {
+            "title": "About AliveRadar | Page-by-Page Website Monitoring",
+            "description": "Learn about AliveRadar.",
+            "indexable": True,
+        },
+        "/contact": {
+            "title": "Contact AliveRadar | Website Monitoring Support",
+            "description": "Contact AliveRadar.",
             "indexable": True,
         },
         **{
@@ -62,11 +74,13 @@ def seo_directory(tmp_path):
             "indexable": False,
             "notFound": True,
         },
-        "publicPages": ["/", "/overview"],
+        "publicPages": ["/", "/overview", "/about", "/contact"],
         "socialImage": "/brand/aliveradar-mark.png",
         "prerender": {
             "/": ".prerender/home.html",
             "/overview": ".prerender/overview.html",
+            "/about": ".prerender/about.html",
+            "/contact": ".prerender/contact.html",
             "/not-found": ".prerender/404.html",
         },
         "schemas": {

@@ -18,6 +18,7 @@
     "db:migrate": "node scripts/python.mjs -m backend.cli migrate",
     "db:seed": "node scripts/python.mjs -m backend.cli seed",
     "seo:files": "node scripts/python.mjs -m backend.cli seo-files",
+    "seo:audit": "npm run build && node scripts/seo-audit.mjs",
     "build": "vite build --config apps/web/vite.config.ts && node scripts/prerender.mjs",
     "start:api": "node scripts/python.mjs -m backend.cli api",
     "start:worker": "node scripts/python.mjs -m backend.cli worker",

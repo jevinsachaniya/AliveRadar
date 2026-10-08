@@ -1,0 +1,344 @@
+﻿/* About and Contact use the same visual language as the AliveRadar homepage. */
+.about-page,
+.contact-page {
+  display: grid;
+  gap: clamp(3.5rem, 7vw, 6rem);
+  padding: clamp(3.75rem, 7vw, 6.5rem) 0;
+}
+
+.website-hero.about-hero,
+.website-hero.contact-hero {
+  display: flex;
+  min-height: 0;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.about-page .website-eyebrow,
+.contact-page .website-eyebrow {
+  margin: 0 0 0.9rem;
+  color: var(--purple);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  line-height: 1.2;
+}
+
+.about-hero h1,
+.contact-hero h1 {
+  max-width: 14ch;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(2.55rem, 5.5vw, 4.5rem);
+  font-weight: 650;
+  letter-spacing: -0.065em;
+  line-height: 1.06;
+}
+
+.about-page .website-hero-copy,
+.contact-page .website-hero-copy {
+  max-width: 40rem;
+  margin: 1.5rem auto 0;
+  color: var(--secondary);
+  font-size: clamp(1rem, 1.5vw, 1.125rem);
+  line-height: 1.7;
+}
+
+.about-page .website-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.about-page .website-primary-action,
+.about-page .website-secondary-action,
+.contact-page .website-primary-action,
+.contact-page .website-secondary-action {
+  display: inline-flex;
+  min-height: 2.9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  padding: 0.7rem 1.05rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.about-page .website-primary-action,
+.contact-page .website-primary-action {
+  border-color: var(--forest);
+  background: var(--forest);
+  color: #fff;
+}
+
+.about-page .website-primary-action:hover,
+.contact-page .website-primary-action:hover {
+  border-color: #246347;
+  background: #246347;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.about-page .website-secondary-action,
+.contact-page .website-secondary-action {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.about-page .website-secondary-action:hover,
+.contact-page .website-secondary-action:hover {
+  background: var(--paper);
+  color: var(--text);
+}
+
+.about-page .website-section {
+  padding: 0;
+}
+
+.about-page .website-section-heading {
+  display: block;
+  max-width: 43rem;
+  margin-bottom: 2.25rem;
+}
+
+.about-page .website-section-heading h2,
+.about-page .website-callout h2,
+.contact-page .website-callout h2,
+.contact-page .contact-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.85rem, 3.7vw, 3rem);
+  font-weight: 630;
+  letter-spacing: -0.045em;
+  line-height: 1.13;
+}
+
+.about-page .website-section-heading > p:last-child,
+.about-page .website-callout p,
+.contact-page .website-callout p,
+.contact-page .contact-card p {
+  margin: 1rem 0 0;
+  color: var(--secondary);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.about-page .website-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.about-page .website-feature-card,
+.contact-page .contact-card {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 14px 35px rgba(18, 67, 51, 0.06);
+}
+
+.about-page .website-feature-card {
+  min-width: 0;
+  padding: clamp(1.35rem, 2.5vw, 1.75rem);
+}
+
+.about-page .website-feature-card h3 {
+  margin: 1rem 0 0.55rem;
+  color: var(--text);
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.about-page .website-feature-card p {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.about-page .website-step-number {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--purple-soft);
+  color: var(--purple);
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.about-page .website-callout,
+.contact-page .website-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  margin: 0;
+  padding: clamp(1.7rem, 4vw, 3.25rem);
+  border-radius: 1.25rem;
+  background: var(--forest);
+}
+
+.about-page .website-callout > div,
+.contact-page .website-callout > div {
+  max-width: 40rem;
+}
+
+.about-page .website-callout h2,
+.about-page .website-callout p,
+.about-page .website-callout .website-eyebrow,
+.contact-page .website-callout h2,
+.contact-page .website-callout p,
+.contact-page .website-callout .website-eyebrow {
+  color: #fff;
+}
+
+.about-page .website-callout p,
+.contact-page .website-callout p {
+  opacity: 0.8;
+}
+
+.about-page .website-callout .website-eyebrow,
+.contact-page .website-callout .website-eyebrow {
+  opacity: 0.72;
+}
+
+.about-page .website-callout .website-primary-action,
+.contact-page .website-callout .website-primary-action {
+  flex: 0 0 auto;
+  border-color: var(--lime);
+  background: var(--lime);
+  color: var(--forest);
+}
+
+.about-page .website-callout .website-primary-action:hover,
+.contact-page .website-callout .website-primary-action:hover {
+  border-color: #e4f8b3;
+  background: #e4f8b3;
+  color: var(--forest);
+}
+
+.contact-page {
+  gap: clamp(3rem, 6vw, 5rem);
+}
+
+.contact-page .contact-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 1.25rem;
+  width: 100%;
+  margin: 0;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.contact-page .contact-icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: 0.85rem;
+  background: var(--purple-soft);
+  color: var(--purple);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.contact-page .contact-email {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--purple);
+  font-size: 1rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.contact-page .contact-email:hover {
+  text-decoration: underline;
+}
+
+:root[data-theme='dark'] .about-page .website-primary-action,
+:root[data-theme='dark'] .contact-page .website-primary-action {
+  border-color: var(--lime);
+  background: var(--lime);
+  color: var(--forest);
+}
+
+:root[data-theme='dark'] .about-page .website-primary-action:hover,
+:root[data-theme='dark'] .contact-page .website-primary-action:hover {
+  border-color: #e4f8b3;
+  background: #e4f8b3;
+  color: var(--forest);
+}
+
+@media (max-width: 720px) {
+  .about-page,
+  .contact-page {
+    gap: 3.25rem;
+    padding: 3.25rem 0 4rem;
+  }
+
+  .about-hero h1,
+  .contact-hero h1 {
+    max-width: 13ch;
+    font-size: clamp(2.3rem, 12vw, 3.25rem);
+  }
+
+  .about-page .website-hero-copy,
+  .contact-page .website-hero-copy {
+    margin-top: 1.15rem;
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  .about-page .website-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about-page .website-callout,
+  .contact-page .website-callout {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .about-page .website-hero-actions,
+  .about-page .website-hero-actions > a,
+  .about-page .website-callout > .website-primary-action,
+  .contact-page .website-callout > .website-primary-action {
+    width: 100%;
+  }
+
+  .about-page .website-section-heading h2,
+  .about-page .website-callout h2,
+  .contact-page .website-callout h2,
+  .contact-page .contact-card h2 {
+    font-size: 1.8rem;
+  }
+
+  .contact-page .contact-card {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

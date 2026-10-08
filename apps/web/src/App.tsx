@@ -8,6 +8,8 @@ import { AppLayout } from './components/AppLayout';
 import { LoadingSkeleton, ErrorState } from './components/ui';
 import { authPath, returnTarget } from './authNavigation';
 import { Home } from './pages/Home';
+import { About } from './pages/About';
+import { Contact } from './pages/Contact';
 import { PublicOverview } from './pages/PublicOverview';
 import { NotFound } from './pages/NotFound';
 import { pageMetadata, useSeo } from './seo';
@@ -78,13 +80,15 @@ function App() {
         <Route path="/status/:slug" element={<PublicStatus />} />
       </Routes>
     );
-  if (location.pathname === '/' || location.pathname === '/overview') {
+  if (['/', '/overview', '/about', '/contact'].includes(location.pathname)) {
     const user = auth.error ? undefined : auth.data?.user;
     return (
       <Routes>
         <Route element={<AppLayout user={user} />}>
           <Route index element={<Home user={user} />} />
           <Route path="/overview" element={user ? <Overview user={user} /> : <PublicOverview />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
         </Route>
       </Routes>
     );

@@ -56,9 +56,12 @@ export function PublicOverview() {
         <div>
           <div className="page-eyebrow">GET TO KNOW ALIVERADAR</div>
           <h1>
-            Overview<span className="heading-dot">.</span>
+            Website monitoring<span className="heading-dot">.</span>
           </h1>
-          <p>Website monitoring, page by page. Explore what AliveRadar can do for you.</p>
+          <p>
+            Explore page-by-page uptime monitoring, response time history, downtime alerts and clear
+            website status updates.
+          </p>
         </div>
         <Link className="button primary" to={authPath('/login', addWebsiteTarget)}>
           Add website <ArrowRight size={17} />
@@ -68,9 +71,10 @@ export function PublicOverview() {
         <div className="website-section-heading">
           <div>
             <span className="section-eyebrow">EVERY PAGE, ON YOUR RADAR</span>
-            <h2>A clearer view of your website.</h2>
+            <h2>Website uptime monitoring that shows the page behind the status.</h2>
             <p>
-              Browse freely. Sign in when you are ready to add your website and start monitoring.
+              Browse freely. Sign in when you are ready to add a website, run independent URL checks
+              and start building your monitoring history.
             </p>
           </div>
         </div>

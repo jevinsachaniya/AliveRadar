@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+﻿import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api';
 import { addWebsiteTarget, authPath } from '../authNavigation';
+import { homeFaqs } from '../seo';
 import type { Monitor, Overview, Paginated, User } from '../types';
 import {
   ErrorState,
@@ -40,29 +41,6 @@ const AddWebsiteDialog = lazy(() =>
 const WebsiteOverview = lazy(() =>
   import('../components/WebsiteCards').then((module) => ({ default: module.WebsiteOverview })),
 );
-
-const questions = [
-  [
-    'What can I monitor?',
-    'Add a website to AliveRadar, group its URLs and give each page a name. Pages are checked independently. See UP, DEGRADED or DOWN for the website, with the exact page names when an outage occurs.',
-  ],
-  [
-    'Does my browser need to stay open?',
-    'No. Monitoring continues in the background even when you close this website. Return whenever you want to see the latest observations.',
-  ],
-  [
-    'How is uptime calculated?',
-    'Uptime is the percentage of successful observed checks in the selected period. Times without checks remain unknown, rather than being counted as successful.',
-  ],
-  [
-    'Can I share a status page?',
-    'Yes. Choose which monitors appear on a status page and publish it. Visitors see service names, availability and incident history; your monitor URLs and account details stay private.',
-  ],
-  [
-    'How do email alerts work?',
-    'Enable email alerts for your website and outage and recovery notifications in your account. AliveRadar emails your account address when a page has a confirmed outage and when it recovers, including the page name and URL.',
-  ],
-];
 
 export function Home({ user }: { user?: User }) {
   const [add, setAdd] = useState(false);
@@ -108,8 +86,9 @@ export function Home({ user }: { user?: User }) {
             </span>
           </h1>
           <p>
-            AliveRadar keeps watch over your website, page by page. See what’s online, find the
-            exact page that needs attention, and get an email when it goes down or comes back.
+            AliveRadar is a website uptime checker that watches your important URLs page by page.
+            See what is online, find the exact page that needs attention, and get an email when it
+            goes down or comes back.
           </p>
           <div className="hero-actions">
             {user ? (
@@ -130,7 +109,7 @@ export function Home({ user }: { user?: User }) {
           </div>
           <div className="hero-reassurance">
             <span>
-              <Check size={14} /> Checks while you’re away
+              <Check size={14} /> Checks while you're away
             </span>
             <span>
               <Check size={14} /> Every page tracked independently
@@ -172,22 +151,22 @@ export function Home({ user }: { user?: User }) {
                     On your radar.
                   </>
                 ) : down ? (
-                  'Let’s take a closer look.'
+                  "Let's take a closer look."
                 ) : data.pending ? (
                   'Getting a first look.'
                 ) : data.up ? (
                   <>
                     Looking good.
                     <br />
-                    We’re keeping watch.
+                    We're keeping watch.
                   </>
                 ) : (
-                  'Paused, until you’re ready.'
+                  "Paused, until you're ready."
                 )}
               </h2>
               <p>
                 {user && data
-                  ? `${data.up} online · ${data.down} need attention · ${data.paused} paused`
+                  ? `${data.up} online  /  ${data.down} need attention  /  ${data.paused} paused`
                   : 'Page health, website status and alerts, together.'}
               </p>
               <div className="hero-history">
@@ -203,7 +182,7 @@ export function Home({ user }: { user?: User }) {
                 <div>
                   <span>
                     {featured
-                      ? 'Observed history · 30 days'
+                      ? 'Observed history  /  30 days'
                       : 'An illustration of your future history'}
                   </span>
                   <span>{featured ? percent(featured.analytics?.uptime) : 'Preview'}</span>
@@ -267,11 +246,11 @@ export function Home({ user }: { user?: User }) {
         <div className="website-section-heading">
           <div>
             <span className="section-eyebrow">THE HERE AND NOW</span>
-            <h2>{user ? 'Your corner of the internet.' : 'A home for your website’s health.'}</h2>
+            <h2>{user ? 'Your corner of the internet.' : "A home for your website's health."}</h2>
             <p>
               {user
                 ? 'Real observations. A little more certainty.'
-                : 'Sign in to AliveRadar to follow each page, your website’s overall status and every incident.'}
+                : "Sign in to AliveRadar to follow each page, your website's overall status and every incident."}
             </p>
           </div>
           {user && (
@@ -313,7 +292,7 @@ export function Home({ user }: { user?: User }) {
             </span>
             <div>
               <h3>Meet your first monitor</h3>
-              <p>Add a website. We’ll start keeping a record of how it’s doing.</p>
+              <p>Add a website. We'll start keeping a record of how it's doing.</p>
             </div>
             <button className="button primary" onClick={() => setAdd(true)}>
               Add monitor <Plus size={17} />
@@ -380,7 +359,7 @@ export function Home({ user }: { user?: User }) {
             {
               icon: Radar,
               title: 'Let AliveRadar keep watch',
-              text: 'Every page is checked independently in the background. Follow response times, recorded uptime and your website’s overall status.',
+              text: "Every page is checked independently in the background. Follow response times, recorded uptime and your website's overall status.",
             },
             {
               icon: BellRing,
@@ -475,7 +454,7 @@ export function Home({ user }: { user?: User }) {
           <p>Getting to know AliveRadar.</p>
         </div>
         <div className="website-faq">
-          {questions.map(([question, answer]) => (
+          {homeFaqs.map(([question, answer]) => (
             <details key={question}>
               <summary>
                 {question}

@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, Response
 
 from backend.config import settings
 
-PUBLIC_PATHS = ("/", "/overview")
+PUBLIC_PATHS = ("/", "/overview", "/about", "/contact")
 ORIGIN_TOKEN = "__ALIVERADAR_ORIGIN__"
 CSP = (
     "default-src 'self'; script-src 'self'{script}; style-src 'self' 'unsafe-inline'; "
@@ -38,7 +38,12 @@ def crawler_files(origin: str, indexable: bool) -> dict[str, bytes]:
         raise ValueError(
             "Use an exact HTTP/HTTPS origin without credentials, paths or trailing slash."
         )
-    rules = "Allow: /" if indexable else "Disallow: /"
+    rules = (
+        "Allow: /\nDisallow: /api/\nDisallow: /health\nDisallow: /health/database\n"
+        "Disallow: /ready\nDisallow: /openapi.json"
+        if indexable
+        else "Disallow: /"
+    )
     robots = f"User-agent: *\n{rules}\n\nSitemap: {origin}/sitemap.xml\n"
     root = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
     if indexable:

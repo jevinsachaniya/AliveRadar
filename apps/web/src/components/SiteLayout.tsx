@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+﻿import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Bell, Menu, Moon, Search, Settings, Sun, X } from 'lucide-react';
 import { Brand } from './ui';
@@ -92,6 +92,8 @@ export function SiteHeader({ user }: { user?: User }) {
             : [
                 { to: '/', label: 'Home' },
                 { to: '/overview', label: 'Overview' },
+                { to: '/about', label: 'About' },
+                { to: '/contact', label: 'Contact' },
                 { to: '/#how-it-works', label: 'How it works' },
                 { to: '/#questions', label: 'Questions' },
               ]
@@ -211,6 +213,8 @@ export function SiteFooter({ user }: { user?: User }) {
           <Link to={user ? '/websites' : '/overview#page-health'}>Website monitoring</Link>
           <Link to={user ? '/incidents' : '/overview#page-history'}>Incident history</Link>
           <Link to={user ? '/status-pages' : '/overview#public-status'}>Status pages</Link>
+          <Link to="/about">About AliveRadar</Link>
+          <Link to="/contact">Contact us</Link>
         </div>
         <div className="site-footer-links">
           <span>Your account</span>

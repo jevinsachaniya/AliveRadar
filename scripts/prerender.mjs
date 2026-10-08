@@ -28,6 +28,8 @@ try {
   for (const [path, filename] of [
     ['/', 'home.html'],
     ['/overview', 'overview.html'],
+    ['/about', 'about.html'],
+    ['/contact', 'contact.html'],
     ['/not-found', '404.html'],
   ]) {
     const markup = seo.renderPage(path);

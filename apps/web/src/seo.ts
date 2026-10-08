@@ -2,24 +2,65 @@ import { useEffect } from 'react';
 
 export const ORIGIN_TOKEN = '__ALIVERADAR_ORIGIN__';
 export const socialImage = '/brand/aliveradar-mark.png';
-export const publicPages = ['/', '/overview'] as const;
+export const socialImageAlt = 'AliveRadar logo for website uptime monitoring';
+export const publicPages = ['/', '/overview', '/about', '/contact'] as const;
 export type Metadata = {
   title: string;
   description: string;
   indexable: boolean;
   notFound?: boolean;
 };
+
+export const homeFaqs = [
+  [
+    'What can I monitor?',
+    'Add a website to AliveRadar, group its URLs and give each page a name. Pages are checked independently. See UP, DEGRADED or DOWN for the website, with the exact page names when an outage occurs.',
+  ],
+  [
+    'Does my browser need to stay open?',
+    'No. Monitoring continues in the background even when you close this website. Return whenever you want to see the latest observations.',
+  ],
+  [
+    'How is uptime calculated?',
+    'Uptime is the percentage of successful observed checks in the selected period. Times without checks remain unknown, rather than being counted as successful.',
+  ],
+  [
+    'Does AliveRadar check SSL certificates or DNS records?',
+    'AliveRadar currently focuses on HTTP and HTTPS URL availability, response time and downtime monitoring. Dedicated SSL certificate and DNS record checks are not included.',
+  ],
+  [
+    'Can I share a status page?',
+    'Yes. Choose which monitors appear on a status page and publish it. Visitors see service names, availability and incident history; your monitor URLs and account details stay private.',
+  ],
+  [
+    'How do email alerts work?',
+    'Enable email alerts for your website and outage and recovery notifications in your account. AliveRadar emails your account address when a page has a confirmed outage and when it recovers, including the page name and URL.',
+  ],
+] as const;
+
 export const pages: Record<string, Metadata> = {
   '/': {
-    title: 'Website Uptime Monitoring & Page Alerts | AliveRadar',
+    title: 'Website Uptime Monitoring, Status & Alerts | AliveRadar',
     description:
-      'Monitor every URL of your website with AliveRadar. Track page uptime and response times, spot failed pages, get email alerts and share public status pages.',
+      'Monitor website uptime page by page. Check URL availability and response time, receive downtime alerts, and share website status updates with AliveRadar.',
     indexable: true,
   },
   '/overview': {
-    title: 'Website Monitoring Features & Email Alerts | AliveRadar',
+    title: 'Website Monitoring Features: Uptime, Status & Alerts | AliveRadar',
     description:
-      'Explore AliveRadar website monitoring: independent URL checks, UP, DEGRADED and DOWN health, page incident history, email alerts and public status pages.',
+      'Explore page-by-page website monitoring: independent uptime checks, website status, response time history, downtime alerts and public status pages.',
+    indexable: true,
+  },
+  '/about': {
+    title: 'About AliveRadar | Page-by-Page Website Monitoring',
+    description:
+      'Learn how AliveRadar helps teams monitor critical URLs, understand website uptime and respond when a page outage affects visitors.',
+    indexable: true,
+  },
+  '/contact': {
+    title: 'Contact AliveRadar | Website Monitoring Support',
+    description:
+      'Contact AliveRadar for help with website uptime monitoring, page status, downtime alerts, product feedback or support.',
     indexable: true,
   },
   ...Object.fromEntries(
@@ -75,50 +116,68 @@ export function pageMetadata(path: string): Metadata {
 
 export function structuredData(path: string, origin: string) {
   if (!publicPages.includes(path as (typeof publicPages)[number])) return null;
+  const breadcrumbs = {
+    '/overview': 'Website monitoring features',
+    '/about': 'About AliveRadar',
+    '/contact': 'Contact AliveRadar',
+  } as const;
+  const graph: Array<Record<string, unknown>> = [
+    {
+      '@type': 'Organization',
+      '@id': `${origin}/#organization`,
+      name: 'AliveRadar',
+      url: `${origin}/`,
+      email: 'aliveradar@gmail.com',
+      logo: { '@type': 'ImageObject', url: `${origin}${socialImage}` },
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'aliveradar@gmail.com',
+        availableLanguage: 'en',
+      },
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${origin}/#website`,
+      name: 'AliveRadar',
+      url: `${origin}/`,
+      inLanguage: 'en',
+      publisher: { '@id': `${origin}/#organization` },
+    },
+    {
+      '@type': 'WebPage',
+      '@id': `${origin}${path}#webpage`,
+      url: `${origin}${path}`,
+      name: pages[path].title,
+      description: pages[path].description,
+      inLanguage: 'en',
+      isPartOf: { '@id': `${origin}/#website` },
+      about: { '@id': `${origin}/#organization` },
+    },
+  ];
+  const breadcrumbName = breadcrumbs[path as keyof typeof breadcrumbs];
+  if (breadcrumbName) {
+    graph.push({
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
+        { '@type': 'ListItem', position: 2, name: breadcrumbName, item: `${origin}${path}` },
+      ],
+    });
+  }
+  if (path === '/') {
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: homeFaqs.map(([name, text]) => ({
+        '@type': 'Question',
+        name,
+        acceptedAnswer: { '@type': 'Answer', text },
+      })),
+    });
+  }
   return {
     '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'Organization',
-        '@id': `${origin}/#organization`,
-        name: 'AliveRadar',
-        url: `${origin}/`,
-        logo: { '@type': 'ImageObject', url: `${origin}${socialImage}` },
-      },
-      {
-        '@type': 'WebSite',
-        '@id': `${origin}/#website`,
-        name: 'AliveRadar',
-        url: `${origin}/`,
-        inLanguage: 'en',
-        publisher: { '@id': `${origin}/#organization` },
-      },
-      {
-        '@type': 'WebPage',
-        '@id': `${origin}${path}#webpage`,
-        url: `${origin}${path}`,
-        name: pages[path].title,
-        description: pages[path].description,
-        inLanguage: 'en',
-        isPartOf: { '@id': `${origin}/#website` },
-      },
-      ...(path === '/overview'
-        ? [
-            {
-              '@type': 'BreadcrumbList',
-              itemListElement: [
-                { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
-                {
-                  '@type': 'ListItem',
-                  position: 2,
-                  name: 'Website monitoring features',
-                  item: `${origin}/overview`,
-                },
-              ],
-            },
-          ]
-        : []),
-    ],
+    '@graph': graph,
   };
 }
 
@@ -167,10 +226,20 @@ export function updateSeo(path: string, signedIn = false) {
     property: 'og:image',
     content: `${origin}${socialImage}`,
   });
+  setMeta('meta[property="og:image:alt"]', {
+    property: 'og:image:alt',
+    content: socialImageAlt,
+  });
+  setMeta('meta[property="og:image:type"]', { property: 'og:image:type', content: 'image/png' });
+  setMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'AliveRadar' });
+  setMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
+  setMeta('meta[property="og:locale"]', { property: 'og:locale', content: 'en_US' });
   setMeta('meta[name="twitter:image"]', {
     name: 'twitter:image',
     content: `${origin}${socialImage}`,
   });
+  setMeta('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt', content: socialImageAlt });
+  setMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary' });
   if (metadata.notFound) {
     document.querySelector('link[rel="canonical"]')?.remove();
     document.querySelector('meta[property="og:url"]')?.remove();

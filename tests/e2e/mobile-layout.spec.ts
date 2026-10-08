@@ -156,7 +156,7 @@ async function expectContainedContent(page: Page) {
       // Dense check/delivery tables intentionally scroll inside their own wrapper.
       if (!parent || parent.closest('.data-table, svg')) continue;
       const card = parent.closest(
-        '.panel, .website-group-card, .website-down-banner, .website-live-card, .website-status-card, .feature-art, .visual-caption, .smtp-banner',
+        '.panel, .website-group-card, .website-down-banner, .website-live-card, .website-status-card, .feature-art, .visual-caption, .smtp-banner, .website-feature-card, .contact-card, .website-callout',
       );
       if (!card) continue;
       const bounds = card.getBoundingClientRect();
@@ -230,3 +230,53 @@ for (const width of [320, 390, 600]) {
     }
   });
 }
+
+for (const width of [320, 390, 600]) {
+  test(`public information pages keep text contained at ${width}px`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile');
+    await page.setViewportSize({ width, height: 844 });
+
+    for (const [url, heading] of [
+      ['/about', 'Every page deserves to stay on your radar.'],
+      ['/contact', "Let's keep your important pages visible."],
+    ]) {
+      await page.goto(url);
+      const title = page.getByRole('heading', { name: heading, exact: true });
+      await expect(title).toBeVisible();
+      expect(
+        await title.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
+      ).toBe(true);
+      await expectContainedContent(page);
+    }
+  });
+}
+
+test('public information page content stays centered in one hero column', async ({
+  page,
+}, testInfo) => {
+  const width = testInfo.project.name === 'mobile' ? 390 : 1280;
+  await page.setViewportSize({ width, height: 844 });
+
+  for (const url of ['/about', '/contact']) {
+    await page.goto(url);
+    const hero = page.locator(url === '/about' ? '.about-hero' : '.contact-hero');
+    await expect(hero).toBeVisible();
+    expect(await hero.evaluate((element) => getComputedStyle(element).display)).toBe('flex');
+    expect(await hero.evaluate((element) => getComputedStyle(element).flexDirection)).toBe(
+      'column',
+    );
+    expect(
+      await hero.evaluate((element) => {
+        const heroCenter = element.getBoundingClientRect().left + element.clientWidth / 2;
+        return [...element.children].every((child) => {
+          const bounds = child.getBoundingClientRect();
+          return Math.abs(bounds.left + bounds.width / 2 - heroCenter) <= 2;
+        });
+      }),
+    ).toBe(true);
+  }
+
+  await page.goto('/about');
+  const purpose = page.locator('.website-section-heading');
+  expect(await purpose.evaluate((element) => getComputedStyle(element).display)).toBe('block');
+});
