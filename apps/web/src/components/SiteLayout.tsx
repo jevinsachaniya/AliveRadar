@@ -241,7 +241,7 @@ export function SiteFooter({ user }: { user?: User }) {
       </div>
       <div className="site-footer-bottom">
         <span>© {new Date().getFullYear()} AliveRadar</span>
-        <span>Uptime reflects observed checks. Times shown in UTC.</span>
+        <span>Uptime reflects observed checks. Times display in your local time.</span>
         <a href="/api/docs" target="_blank" rel="noreferrer">
           API documentation <ArrowUpRight size={13} />
         </a>

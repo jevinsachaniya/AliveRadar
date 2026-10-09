@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -9,9 +9,13 @@ import {
   TriangleAlert,
   Clock,
   Pencil,
+  SearchCheck,
+  RefreshCw,
+  CheckCircle2,
+  Info,
 } from 'lucide-react';
 import { api } from '../api';
-import type { Monitor, Analytics, Check, Incident, Paginated } from '../types';
+import type { Monitor, Analytics, Check, Incident, IncidentDiagnosis, Paginated } from '../types';
 import {
   LoadingSkeleton,
   ErrorState,
@@ -20,7 +24,7 @@ import {
   UptimeBar,
   percent,
   milliseconds,
-  utc,
+  localDateTime,
   duration,
   EmptyState,
 } from '../components/ui';
@@ -29,9 +33,11 @@ import { AddMonitorDialog } from '../components/AddMonitorDialog';
 import { MonitorActions } from '../components/MonitorTable';
 export function MonitorDetails() {
   const { id } = useParams();
+  const diagnosisRef = useRef<HTMLElement>(null);
   const [days, setDays] = useState(1),
     [edit, setEdit] = useState(false),
-    [page, setPage] = useState(1);
+    [page, setPage] = useState(1),
+    [showDiagnosis, setShowDiagnosis] = useState(false);
   const monitor = useQuery({
     queryKey: ['monitor', id],
     queryFn: () => api<Monitor>(`/monitors/${id}`),
@@ -52,6 +58,17 @@ export function MonitorDetails() {
     queryFn: () => api<Paginated<Incident>>(`/monitors/${id}/incidents`),
     refetchInterval: 15000,
   });
+  const diagnosis = useQuery({
+    queryKey: ['incident-diagnosis', id],
+    queryFn: () => api<IncidentDiagnosis>(`/monitors/${id}/diagnosis`),
+    enabled: showDiagnosis,
+  });
+  useEffect(() => {
+    if (!showDiagnosis) return;
+    requestAnimationFrame(() =>
+      diagnosisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  }, [showDiagnosis]);
   if (monitor.isPending || stats.isPending || checks.isPending || incidents.isPending)
     return <LoadingSkeleton />;
   const error = monitor.error ?? stats.error ?? checks.error ?? incidents.error;
@@ -88,6 +105,16 @@ export function MonitorDetails() {
           </a>
         </div>
         <div className="page-heading-actions">
+          <button
+            className="button secondary"
+            onClick={() => {
+              if (showDiagnosis) void diagnosis.refetch();
+              else setShowDiagnosis(true);
+            }}
+          >
+            {showDiagnosis ? <RefreshCw size={15} /> : <SearchCheck size={15} />}
+            {showDiagnosis ? 'Refresh analysis' : 'Analyze incident'}
+          </button>
           <button className="button secondary" onClick={() => setEdit(true)}>
             <Pencil size={15} />
             Edit monitor
@@ -97,7 +124,7 @@ export function MonitorDetails() {
       </div>
       <div className="detail-period">
         <span>
-          Reporting window <span className="muted">· UTC rolling periods</span>
+          Reporting window <span className="muted">· Your local time</span>
         </span>
         <div className="period-switch">
           {[
@@ -161,6 +188,131 @@ export function MonitorDetails() {
         </div>
         <ResponseTimeChart points={s.chart} days={days} />
       </section>
+      {showDiagnosis && (
+        <section
+          ref={diagnosisRef}
+          className="panel diagnosis-panel"
+          aria-live="polite"
+          aria-labelledby="diagnosis-title"
+        >
+          <div className="panel-title-row diagnosis-title-row">
+            <div>
+              <span className="section-kicker">RULES-BASED ANALYSIS</span>
+              <h2 id="diagnosis-title">
+                {diagnosis.data && !diagnosis.data.activeFailure
+                  ? 'Current monitor status'
+                  : 'Why is this website down?'}
+              </h2>
+              <p>
+                {diagnosis.data && !diagnosis.data.activeFailure
+                  ? 'Review the latest monitoring result'
+                  : 'Analyze existing monitoring logs'}
+              </p>
+            </div>
+            {diagnosis.data && (
+              <div className="diagnosis-labels">
+                <span
+                  className={`diagnosis-signal ${diagnosis.data.activeFailure ? 'failure' : 'healthy'}`}
+                >
+                  {diagnosis.data.primarySignal}
+                </span>
+                {diagnosis.data.activeFailure && (
+                  <span
+                    className={`diagnosis-confidence ${diagnosis.data.confidence.level.toLowerCase()}`}
+                  >
+                    {diagnosis.data.confidence.level} confidence
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          {diagnosis.isPending && (
+            <p className="diagnosis-loading">Reviewing stored check history…</p>
+          )}
+          {diagnosis.error && (
+            <div className="diagnosis-error">
+              We couldn’t analyze the stored observations. Try refreshing the analysis.
+            </div>
+          )}
+          {diagnosis.data && (
+            <div className="diagnosis-content">
+              <div className="diagnosis-summary">
+                <p>{diagnosis.data.summary}</p>
+                <span>{diagnosis.data.confidence.explanation}</span>
+              </div>
+              <section
+                className="diagnosis-section diagnosis-detected"
+                aria-labelledby="diagnosis-detected"
+              >
+                <h3 id="diagnosis-detected">What we detected</h3>
+                <ul className="diagnosis-detections">
+                  {diagnosis.data.whatWeDetected.map((item) => {
+                    const Icon =
+                      item.tone === 'healthy'
+                        ? CheckCircle2
+                        : item.tone === 'warning'
+                          ? TriangleAlert
+                          : Info;
+                    return (
+                      <li key={`${item.title}-${item.detail}`} className={item.tone}>
+                        <Icon size={16} aria-hidden="true" />
+                        <div>
+                          <strong>{item.title}</strong>
+                          <span>{item.detail}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+              {diagnosis.data.activeFailure && (
+                <>
+                  <div className="diagnosis-grid">
+                    <section className="diagnosis-section" aria-labelledby="diagnosis-evidence">
+                      <h3 id="diagnosis-evidence">Observed evidence</h3>
+                      <ul className="diagnosis-evidence">
+                        {diagnosis.data.evidence.map((item) => (
+                          <li key={`${item.label}-${item.value}`}>
+                            <strong>{item.label}</strong>
+                            <span>{item.value}</span>
+                            <small>{item.detail}</small>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                    <section className="diagnosis-section" aria-labelledby="diagnosis-steps">
+                      <h3 id="diagnosis-steps">How to resolve this</h3>
+                      <ol className="diagnosis-steps">
+                        {diagnosis.data.recommendedSteps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ol>
+                    </section>
+                  </div>
+                  {diagnosis.data.likelyCauses.length > 0 && (
+                    <section
+                      className="diagnosis-section diagnosis-causes"
+                      aria-labelledby="diagnosis-causes"
+                    >
+                      <h3 id="diagnosis-causes">Likely causes to investigate</h3>
+                      <div>
+                        {diagnosis.data.likelyCauses.map((cause) => (
+                          <article key={cause.title} className="diagnosis-cause">
+                            <span>{cause.likelihood}</span>
+                            <h4>{cause.title}</h4>
+                            <p>{cause.description}</p>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+              <p className="diagnosis-disclaimer">{diagnosis.data.disclaimer}</p>
+            </div>
+          )}
+        </section>
+      )}
       <section className="panel">
         <div className="panel-title-row">
           <h2>Recent checks</h2>
@@ -181,7 +333,7 @@ export function MonitorDetails() {
               <tbody>
                 {checks.data!.items.map((c) => (
                   <tr key={c.id}>
-                    <td>{utc(c.checkedAt)}</td>
+                    <td>{localDateTime(c.checkedAt)}</td>
                     <td>
                       <StatusBadge status={c.resultStatus} />
                     </td>
@@ -230,7 +382,7 @@ export function MonitorDetails() {
                 </span>
                 <div>
                   <strong>{i.cause}</strong>
-                  <span>{utc(i.startedAt)}</span>
+                  <span>{localDateTime(i.startedAt)}</span>
                 </div>
                 <span>
                   {duration(

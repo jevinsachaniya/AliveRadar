@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Mail, CheckCircle2, Info } from 'lucide-react';
 import { api } from '../api';
 import type { Preference, Paginated, Delivery } from '../types';
-import { LoadingSkeleton, ErrorState, EmptyState, utc } from '../components/ui';
+import { LoadingSkeleton, ErrorState, EmptyState, localDateTime } from '../components/ui';
 export function Notifications() {
   const client = useQueryClient();
   const preferences = useQuery({
@@ -152,7 +152,7 @@ export function Notifications() {
                       <span className="count-pill">{d.status}</span>
                     </td>
                     <td>{d.attempts}</td>
-                    <td>{utc(d.createdAt)}</td>
+                    <td>{localDateTime(d.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

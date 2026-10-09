@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { LogOut, Activity, ExternalLink, Shield, UserRound } from 'lucide-react';
 import { api, setCsrf } from '../api';
 import type { User, Overview } from '../types';
-import { utc } from '../components/ui';
+import { localDateTime } from '../components/ui';
 export function Settings({ user }: { user: User }) {
   const navigate = useNavigate(),
     client = useQueryClient();
@@ -58,7 +58,7 @@ export function Settings({ user }: { user: User }) {
         <div className="setting-row">
           <div>
             <h3>Member since</h3>
-            <p>{utc(user.createdAt)}</p>
+            <p>{localDateTime(user.createdAt)}</p>
           </div>
           <button className="button secondary" onClick={() => void logout()}>
             <LogOut size={15} />
@@ -111,7 +111,8 @@ export function Settings({ user }: { user: User }) {
           <div>
             <h3>Reporting timezone</h3>
             <p>
-              UTC rolling windows. Missing and paused periods do not count as successful checks.
+              Timestamps display in your browser’s local time. Missing and paused periods do not
+              count as successful checks.
             </p>
           </div>
         </div>

@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from backend.analytics import next_state, retry_delay
 from backend.auth import hash_password, password_valid
 from backend.db import now, sqlalchemy_url
+from backend.diagnosis import diagnose
 from backend.schemas import MonitorInput, MonitorPatch, Registration, validate_url
 from backend.security import PinnedResolver, public_address, safe_destination
 from backend.website_state import overall_status, website_origin
@@ -152,6 +153,98 @@ def test_prisma_url_compatibility():
 def test_website_overall_status(states, expected):
     pages = [SimpleNamespace(current_status=value, is_active=value != "PAUSED") for value in states]
     assert overall_status(pages) == expected
+
+
+def test_incident_diagnosis_explains_repeated_server_errors_without_confirming_cause():
+    checks = [
+        SimpleNamespace(
+            result_status="DOWN",
+            http_status_code=503,
+            response_time_ms=180,
+            error_type="HTTP",
+        )
+        for _ in range(3)
+    ]
+    result = diagnose(
+        checks,
+        previous_success=SimpleNamespace(http_status_code=200, response_time_ms=95),
+    )
+
+    assert result["confidence"]["level"] == "High"
+    assert result["likelyCauses"][0]["title"] == "Repeated server-side HTTP errors"
+    assert "exact component is not verified" in result["likelyCauses"][0]["description"]
+    assert any(item["value"] == "HTTP 503 observed 3 times" for item in result["evidence"])
+    assert result["primarySignal"] == "HTTP 503 detected"
+    assert [item["title"] for item in result["whatWeDetected"]][:2] == [
+        "Previously operational",
+        "Service unavailable",
+    ]
+    assert "hosting provider" in result["recommendedSteps"][0]
+    assert "does not confirm a root cause" in result["disclaimer"]
+
+
+@pytest.mark.parametrize(
+    ("error_type", "expected_title"),
+    [
+        ("TIMEOUT", "Requests exceeded the configured timeout"),
+        ("DNS", "Hostname resolution failed"),
+        ("TLS", "TLS negotiation failed"),
+        ("CONNECTION", "The service could not be reached"),
+    ],
+)
+def test_incident_diagnosis_explains_network_failure_types(error_type, expected_title):
+    checks = [
+        SimpleNamespace(
+            result_status="DOWN",
+            http_status_code=None,
+            response_time_ms=1000,
+            error_type=error_type,
+        ),
+        SimpleNamespace(
+            result_status="DOWN",
+            http_status_code=None,
+            response_time_ms=1000,
+            error_type=error_type,
+        ),
+    ]
+    result = diagnose(checks)
+
+    assert result["likelyCauses"][0]["title"] == expected_title
+    assert result["confidence"]["level"] == "Medium"
+
+
+def test_incident_diagnosis_reports_when_no_failed_checks_are_available():
+    result = diagnose(
+        [
+            SimpleNamespace(
+                result_status="UP", http_status_code=200, response_time_ms=120, error_type=None
+            )
+        ]
+    )
+
+    assert result["likelyCauses"] == []
+    assert result["confidence"]["level"] == "Low"
+    assert "No failed checks" in result["summary"]
+
+
+def test_incident_diagnosis_hides_historical_error_details_when_monitor_is_up():
+    result = diagnose(
+        [
+            SimpleNamespace(
+                result_status="DOWN",
+                http_status_code=503,
+                response_time_ms=120,
+                error_type="HTTP",
+            )
+        ],
+        previous_success=SimpleNamespace(http_status_code=200, response_time_ms=90),
+        monitor_status="UP",
+    )
+
+    assert not result["activeFailure"]
+    assert result["primarySignal"] == "Page is currently up"
+    assert result["evidence"] == [] and result["likelyCauses"] == []
+    assert result["whatWeDetected"][0]["title"] == "Page is operational"
 
 
 @pytest.mark.parametrize(

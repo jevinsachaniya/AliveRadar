@@ -8,6 +8,7 @@ from backend.analytics import analytics
 from backend.auth import DB, UserId
 from backend.common import ApiError, public_monitor, serialized
 from backend.db import now
+from backend.diagnosis import diagnose
 from backend.models import Incident, Monitor, MonitorCheck
 from backend.schemas import MonitorInput, MonitorPatch, Pagination, days_window, model_data
 from backend.security import safe_destination
@@ -212,6 +213,60 @@ def resume(monitor_id: str, db: DB, user_id: UserId):
 def monitor_analytics(monitor_id: str, db: DB, user_id: UserId, days: int = 1):
     owned_monitor(db, monitor_id, user_id)
     return serialized(analytics(db, monitor_id, days_window(days)))
+
+
+@router.get("/{monitor_id}/diagnosis")
+def incident_diagnosis(monitor_id: str, db: DB, user_id: UserId):
+    """Explain the latest incident using existing stored monitoring observations."""
+    monitor = owned_monitor(db, monitor_id, user_id)
+    recent_checks = list(
+        db.scalars(
+            select(MonitorCheck)
+            .where(MonitorCheck.monitor_id == monitor.id)
+            .order_by(MonitorCheck.checked_at.desc())
+            .limit(120)
+        )
+    )
+    latest_success = next((check for check in recent_checks if check.result_status == "UP"), None)
+    if monitor.current_status != "DOWN":
+        return serialized(
+            diagnose([], previous_success=latest_success, monitor_status=monitor.current_status)
+        )
+
+    incident = db.scalar(
+        select(Incident)
+        .where(Incident.monitor_id == monitor.id, Incident.status == "OPEN")
+        .order_by(Incident.started_at.desc())
+        .limit(1)
+    )
+    previous_success = None
+    if incident:
+        upper_bound = incident.resolved_at or now()
+        previous_success = next(
+            (
+                check
+                for check in recent_checks
+                if check.checked_at < incident.started_at and check.result_status == "UP"
+            ),
+            None,
+        )
+        incident_checks = [
+            check
+            for check in recent_checks
+            if incident.started_at <= check.checked_at <= upper_bound
+        ]
+        if incident_checks:
+            recent_checks = incident_checks
+    else:
+        current_failure_streak = []
+        for check in recent_checks:
+            if check.result_status != "DOWN":
+                break
+            current_failure_streak.append(check)
+        recent_checks = current_failure_streak or recent_checks
+    return serialized(
+        diagnose(recent_checks, incident, previous_success, monitor_status=monitor.current_status)
+    )
 
 
 @router.get("/{monitor_id}/checks")

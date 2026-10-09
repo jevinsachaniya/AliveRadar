@@ -30,7 +30,6 @@ export function ResponseTimeChart({ points, days = 1 }: { points: ChartPoint[]; 
             tick={{ fontSize: 11, fill: 'var(--muted)' }}
             tickFormatter={(v) =>
               new Date(String(v)).toLocaleString('en-US', {
-                timeZone: 'UTC',
                 ...(days === 1
                   ? { hour: '2-digit', minute: '2-digit', hour12: false }
                   : { month: 'short', day: 'numeric' }),
@@ -53,7 +52,13 @@ export function ResponseTimeChart({ points, days = 1 }: { points: ChartPoint[]; 
               color: 'var(--text)',
             }}
             labelFormatter={(v) =>
-              `${new Date(String(v)).toLocaleString('en-US', { timeZone: 'UTC' })} UTC`
+              new Intl.DateTimeFormat(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short',
+              }).format(new Date(String(v)))
             }
             formatter={(v) => [`${v} ms`, 'Response time']}
           />

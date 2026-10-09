@@ -630,7 +630,7 @@ def test_tenant_isolation():
     client, _ = account()
     identifier = add(client)
     other, _ = account("b@example.com")
-    for suffix in ["", "/analytics", "/checks", "/incidents"]:
+    for suffix in ["", "/analytics", "/checks", "/incidents", "/diagnosis"]:
         assert other.get(f"/api/v1/monitors/{identifier}{suffix}").status_code == 404
     assert other.patch(f"/api/v1/monitors/{identifier}", json={"name": "stolen"}).status_code == 404
     assert (
@@ -741,6 +741,24 @@ def test_incident_thresholds_and_duplicate_commit():
         assert db.scalar(select(Incident)).status == "RESOLVED"
         assert db.scalar(select(Incident)).resolved_at is not None
     assert count(MonitorCheck) == 4
+
+
+def test_incident_diagnosis_uses_stored_check_evidence():
+    client, _ = account()
+    identifier = add(client)
+    result(identifier)
+    result(identifier, True)
+    result(identifier, True)
+
+    response = client.get(f"/api/v1/monitors/{identifier}/diagnosis")
+    assert response.status_code == 200
+    diagnosis = response.json()
+    assert diagnosis["scope"]["status"] == "OPEN"
+    assert diagnosis["likelyCauses"][0]["title"] == "Repeated server-side HTTP errors"
+    assert diagnosis["primarySignal"] == "HTTP 503 detected"
+    assert diagnosis["whatWeDetected"][0]["title"] == "Previously operational"
+    assert diagnosis["recommendedSteps"]
+    assert "does not confirm a root cause" in diagnosis["disclaimer"]
 
 
 def test_parallel_claims_and_lease_fencing():

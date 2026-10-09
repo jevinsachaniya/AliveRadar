@@ -106,7 +106,6 @@ export function Overview({ user, monitorsOnly = false }: { user: User; monitorsO
               month: 'short',
               day: 'numeric',
               year: 'numeric',
-              timeZone: 'UTC',
             })}
             <ChevronDown size={14} />
           </span>

@@ -29,7 +29,7 @@ import {
   StatusBadge,
   UptimeBar,
   percent,
-  utc,
+  localDateTime,
 } from '../components/ui';
 import { WebsiteFrame } from '../components/SiteLayout';
 export function StatusPages() {
@@ -353,8 +353,8 @@ export function PublicStatus() {
               </span>
               <h3>{i.name}</h3>
               <p>
-                {utc(i.startedAt)}
-                {i.resolvedAt ? ` · Resolved ${utc(i.resolvedAt)}` : ''}
+                {localDateTime(i.startedAt)}
+                {i.resolvedAt ? ` · Resolved ${localDateTime(i.resolvedAt)}` : ''}
               </p>
             </div>
           ))}

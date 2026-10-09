@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, TriangleAlert, Clock, Activity } from 'lucide-react';
 import { api } from '../api';
 import type { Incident, Paginated } from '../types';
-import { LoadingSkeleton, ErrorState, EmptyState, utc, duration } from '../components/ui';
+import { LoadingSkeleton, ErrorState, EmptyState, localDateTime, duration } from '../components/ui';
 export function Incidents() {
   const [page, setPage] = useState(1);
   const query = useQuery({
@@ -51,7 +51,7 @@ export function Incidents() {
                         new Date(i.startedAt).getTime(),
                     )}
                   </strong>
-                  <span>{utc(i.startedAt)}</span>
+                  <span>{localDateTime(i.startedAt)}</span>
                 </div>
               </Link>
             ))}
@@ -87,7 +87,7 @@ export function IncidentTimeline({ incident }: { incident: Incident }) {
         </span>
         <div>
           <h3>Outage confirmed</h3>
-          <time>{utc(incident.startedAt)}</time>
+          <time>{localDateTime(incident.startedAt)}</time>
           <p>{incident.cause}</p>
         </div>
       </div>
@@ -99,7 +99,7 @@ export function IncidentTimeline({ incident }: { incident: Incident }) {
           <h3>{incident.resolvedAt ? 'Incident resolved' : 'Monitoring for recovery'}</h3>
           {incident.resolvedAt ? (
             <>
-              <time>{utc(incident.resolvedAt)}</time>
+              <time>{localDateTime(incident.resolvedAt)}</time>
               <p>
                 The incident has ended. This can follow successful checks or a configuration change.
               </p>
@@ -136,7 +136,7 @@ export function IncidentDetails() {
             </span>
           </div>
           <h1>{i.monitor?.name}</h1>
-          <p>Incident started {utc(i.startedAt)}</p>
+          <p>Incident started {localDateTime(i.startedAt)}</p>
         </div>
         <Link to={`/monitors/${i.monitorId}`} className="button secondary">
           View monitor

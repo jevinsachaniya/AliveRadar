@@ -33,6 +33,29 @@ export type Incident = {
     deliveredAt: string | null;
   }[];
 };
+export type IncidentDiagnosis = {
+  analyzedAt: string;
+  scope: {
+    incidentId: string;
+    status: 'OPEN' | 'RESOLVED';
+    startedAt: string;
+    resolvedAt: string | null;
+  } | null;
+  activeFailure: boolean;
+  summary: string;
+  primarySignal: string;
+  confidence: { level: 'High' | 'Medium' | 'Low'; score: number; explanation: string };
+  evidence: { label: string; value: string; detail: string }[];
+  whatWeDetected: { tone: 'healthy' | 'warning' | 'info'; title: string; detail: string }[];
+  likelyCauses: {
+    title: string;
+    likelihood: 'Likely' | 'Possible';
+    description: string;
+    steps: string[];
+  }[];
+  recommendedSteps: string[];
+  disclaimer: string;
+};
 export type Daily = { day: string; checks: number; up: number };
 export type ChartPoint = { time: string; responseMs: number | null };
 export type Analytics = {

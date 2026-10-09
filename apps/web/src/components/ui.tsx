@@ -74,16 +74,14 @@ export function duration(ms: number) {
       ? `${mins} min`
       : `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
-export function utc(date: string) {
-  return (
-    new Date(date).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'UTC',
-    }) + ' UTC'
-  );
+export function localDateTime(date: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(new Date(date));
 }
 export function UptimeBar({ daily = [], paused = false }: { daily?: Daily[]; paused?: boolean }) {
   const today = new Date();
