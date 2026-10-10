@@ -160,6 +160,10 @@ class SecurityMiddleware:
         is_api = request.url.path == "/api" or request.url.path.startswith("/api/")
         if is_api and self.limited((ip, "global"), 240, 60):
             return await reject(429, "Too many requests. Try again shortly.")
+        if request.url.path == "/api/v1/public/network-check" and self.limited(
+            (ip, "network-check"), 12, 60
+        ):
+            return await reject(429, "Too many checks. Try again in a minute.")
         if request.url.path.startswith("/api/v1/auth/") and request.url.path.rsplit("/", 1)[
             -1
         ] not in {"me", "logout"}:

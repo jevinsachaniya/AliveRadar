@@ -85,6 +85,15 @@ export type Monitor = {
   recoveryThreshold: number;
   isActive: boolean;
   currentStatus: Status;
+  dnsStatus: 'UNKNOWN' | 'RESOLVED' | 'FAILED';
+  dnsAddress: string | null;
+  dnsError: string | null;
+  dnsCheckedAt: string | null;
+  tlsStatus: 'UNKNOWN' | 'NOT_APPLICABLE' | 'VALID' | 'EXPIRING' | 'FAILED';
+  tlsExpiresAt: string | null;
+  tlsDaysRemaining: number | null;
+  tlsError: string | null;
+  tlsCheckedAt: string | null;
   lastCheckedAt: string | null;
   createdAt: string;
   latestCheck?: Check;

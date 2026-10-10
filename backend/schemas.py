@@ -61,6 +61,15 @@ class MonitorPatch(MonitorInput):
         return value
 
 
+class NetworkCheckInput(Input):
+    url: str = Field(min_length=1, max_length=2048)
+
+    @field_validator("url")
+    @classmethod
+    def http_url(cls, value: str) -> str:
+        return validate_url(value)
+
+
 class Registration(Input):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
     name: str = Field(min_length=2, max_length=80)

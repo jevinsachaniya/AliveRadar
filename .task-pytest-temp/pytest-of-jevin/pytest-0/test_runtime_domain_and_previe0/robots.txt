@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /health
+Disallow: /health/database
+Disallow: /ready
+Disallow: /openapi.json
+
+Sitemap: https://aliveradar.com/sitemap.xml

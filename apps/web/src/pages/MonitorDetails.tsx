@@ -13,6 +13,8 @@ import {
   RefreshCw,
   CheckCircle2,
   Info,
+  Globe2,
+  ShieldCheck,
 } from 'lucide-react';
 import { api } from '../api';
 import type { Monitor, Analytics, Check, Incident, IncidentDiagnosis, Paginated } from '../types';
@@ -170,6 +172,76 @@ export function MonitorDetails() {
           detail="Confirmed incident time"
         />
       </div>
+      <section className="panel network-health" aria-labelledby="network-health-title">
+        <div className="panel-title-row">
+          <div>
+            <h2 id="network-health-title">DNS & SSL health</h2>
+            <p className="small muted">Checked with each scheduled monitor run</p>
+          </div>
+          <span className="small muted">Certificate alerts begin 14 days before expiry</span>
+        </div>
+        <div className="network-health-grid">
+          <article className={`network-health-card ${m.dnsStatus.toLowerCase()}`}>
+            <div className="network-health-icon">
+              <Globe2 size={19} />
+            </div>
+            <div>
+              <div className="network-health-label">
+                <span>DNS resolution</span>
+                <strong>
+                  {m.dnsStatus === 'RESOLVED'
+                    ? 'Healthy'
+                    : m.dnsStatus === 'FAILED'
+                      ? 'Issue detected'
+                      : 'Waiting'}
+                </strong>
+              </div>
+              <p>
+                {m.dnsStatus === 'RESOLVED'
+                  ? `Hostname resolves to ${m.dnsAddress ?? 'a public address'}.`
+                  : m.dnsStatus === 'FAILED'
+                    ? (m.dnsError ?? 'The hostname could not be resolved.')
+                    : 'DNS health will appear after the first scheduled check.'}
+              </p>
+              {m.dnsCheckedAt && <small>Last checked {localDateTime(m.dnsCheckedAt)}</small>}
+            </div>
+          </article>
+          <article className={`network-health-card ${m.tlsStatus.toLowerCase()}`}>
+            <div className="network-health-icon">
+              <ShieldCheck size={19} />
+            </div>
+            <div>
+              <div className="network-health-label">
+                <span>SSL certificate</span>
+                <strong>
+                  {m.tlsStatus === 'VALID'
+                    ? 'Valid'
+                    : m.tlsStatus === 'EXPIRING'
+                      ? 'Expiring soon'
+                      : m.tlsStatus === 'FAILED'
+                        ? 'Issue detected'
+                        : m.tlsStatus === 'NOT_APPLICABLE'
+                          ? 'Not applicable'
+                          : 'Waiting'}
+                </strong>
+              </div>
+              <p>
+                {m.tlsStatus === 'VALID' && m.tlsDaysRemaining !== null
+                  ? `Certificate has ${m.tlsDaysRemaining} days remaining.`
+                  : m.tlsStatus === 'EXPIRING' && m.tlsDaysRemaining !== null
+                    ? `Certificate expires in ${m.tlsDaysRemaining} days. Renew it before visitors see an error.`
+                    : m.tlsStatus === 'FAILED'
+                      ? (m.tlsError ??
+                        'The certificate or secure connection could not be validated.')
+                      : m.tlsStatus === 'NOT_APPLICABLE'
+                        ? 'This monitor uses HTTP, so it has no SSL certificate to check.'
+                        : 'SSL health will appear after the first scheduled check.'}
+              </p>
+              {m.tlsExpiresAt && <small>Expires {localDateTime(m.tlsExpiresAt)}</small>}
+            </div>
+          </article>
+        </div>
+      </section>
       <section className="panel detail-history">
         <div className="panel-title-row">
           <h2>30-day uptime history</h2>

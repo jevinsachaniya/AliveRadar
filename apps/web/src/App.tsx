@@ -14,6 +14,7 @@ import { Blog } from './pages/Blog';
 import { DevsloadPost } from './pages/BlogPost';
 import { GuideArticle } from './pages/Guides';
 import { PublicOverview } from './pages/PublicOverview';
+import { NetworkChecker } from './pages/NetworkChecker';
 import { NotFound } from './pages/NotFound';
 import { pageMetadata, useSeo } from './seo';
 const Overview = lazy(() => import('./pages/Overview').then((m) => ({ default: m.Overview })));
@@ -89,6 +90,7 @@ function App() {
       '/overview',
       '/about',
       '/contact',
+      '/ssl-dns-checker',
       '/blog',
       '/blog/devsload-com',
       '/blog/how-to-check-if-a-website-is-down',
@@ -105,6 +107,7 @@ function App() {
           <Route path="/overview" element={user ? <Overview user={user} /> : <PublicOverview />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/ssl-dns-checker" element={<NetworkChecker user={user} />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/devsload-com" element={<DevsloadPost />} />
           <Route path="/blog/:slug" element={<GuideArticle />} />

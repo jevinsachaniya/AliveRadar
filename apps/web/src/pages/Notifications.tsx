@@ -67,7 +67,7 @@ export function Notifications() {
           </strong>
           <p>
             {configured
-              ? `Alerts are sent to your account email through ${preferences.data.emailProvider === 'brevo' ? 'Brevo' : 'your email provider'}. Website and page preferences also apply.`
+              ? `Alerts are sent to your account email through ${preferences.data.emailProvider === 'brevo' ? 'Brevo' : 'your email provider'}. Confirmed outages, DNS failures, SSL certificate issues, and their recoveries follow these preferences.`
               : (preferences.data.emailConfigurationIssue ??
                 'Ask the website administrator to configure email delivery to receive outage and recovery alerts.')}
           </p>
@@ -83,7 +83,7 @@ export function Notifications() {
         <div className="setting-row">
           <div>
             <h3>Enable email notifications</h3>
-            <p>Receive alerts at your account email address.</p>
+            <p>Receive outage, DNS, and SSL certificate alerts at your account email address.</p>
           </div>
           <button
             className="toggle"

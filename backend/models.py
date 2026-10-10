@@ -127,6 +127,15 @@ class Monitor(Base):
     next_check_at: Mapped[datetime] = mapped_column("nextCheckAt", DateTime, default=now)
     lease_until: Mapped[datetime | None] = mapped_column("leaseUntil", DateTime)
     lease_token: Mapped[str | None] = mapped_column("leaseToken", Text)
+    dns_status: Mapped[str] = mapped_column("dnsStatus", String, default="UNKNOWN")
+    dns_address: Mapped[str | None] = mapped_column("dnsAddress", Text)
+    dns_error: Mapped[str | None] = mapped_column("dnsError", Text)
+    dns_checked_at: Mapped[datetime | None] = mapped_column("dnsCheckedAt", DateTime)
+    tls_status: Mapped[str] = mapped_column("tlsStatus", String, default="NOT_APPLICABLE")
+    tls_expires_at: Mapped[datetime | None] = mapped_column("tlsExpiresAt", DateTime)
+    tls_days_remaining: Mapped[int | None] = mapped_column("tlsDaysRemaining", Integer)
+    tls_error: Mapped[str | None] = mapped_column("tlsError", Text)
+    tls_checked_at: Mapped[datetime | None] = mapped_column("tlsCheckedAt", DateTime)
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, default=now)
     updated_at: Mapped[datetime] = mapped_column("updatedAt", DateTime, default=now, onupdate=now)
 
@@ -158,6 +167,21 @@ class Incident(Base):
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, default=now)
 
 
+class NetworkAlert(Base):
+    __tablename__ = "NetworkAlert"
+    __table_args__ = (Index("NetworkAlert_monitor_kind_started", "monitorId", "kind", "startedAt"),)
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=new_id)
+    monitor_id: Mapped[str] = mapped_column(
+        "monitorId", ForeignKey("Monitor.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String)
+    cause: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(incident_status, default="OPEN")
+    started_at: Mapped[datetime] = mapped_column("startedAt", DateTime, default=now)
+    resolved_at: Mapped[datetime | None] = mapped_column("resolvedAt", DateTime)
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime, default=now)
+
+
 class NotificationPreference(Base):
     __tablename__ = "NotificationPreference"
     id: Mapped[str] = mapped_column(Text, primary_key=True, default=new_id)
@@ -175,8 +199,14 @@ class NotificationPreference(Base):
 class NotificationDelivery(Base):
     __tablename__ = "NotificationDelivery"
     id: Mapped[str] = mapped_column(Text, primary_key=True, default=new_id)
-    incident_id: Mapped[str] = mapped_column(
+    incident_id: Mapped[str | None] = mapped_column(
         "incidentId", ForeignKey("Incident.id", ondelete="CASCADE")
+    )
+    network_alert_id: Mapped[str | None] = mapped_column(
+        "networkAlertId", ForeignKey("NetworkAlert.id", ondelete="CASCADE")
+    )
+    monitor_id: Mapped[str | None] = mapped_column(
+        "monitorId", ForeignKey("Monitor.id", ondelete="CASCADE")
     )
     channel: Mapped[str] = mapped_column(Text, default="EMAIL")
     event_type: Mapped[str] = mapped_column("eventType", Text)

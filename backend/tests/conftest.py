@@ -13,6 +13,7 @@ def seo_directory(tmp_path):
         ("overview.html", "Independent page checks"),
         ("about.html", "Every page deserves to stay on your radar"),
         ("contact.html", "Let's keep your important pages visible"),
+        ("ssl-dns-checker.html", "SSL & DNS Checker"),
         ("blog.html", "Useful notes for people who keep websites online"),
         ("devsload-com.html", "DevsLoad.com: simple online tools for everyday digital work"),
         ("how-to-check-if-a-website-is-down.html", "How to Check If a Website Is Down"),
@@ -47,6 +48,11 @@ def seo_directory(tmp_path):
         "/contact": {
             "title": "Contact AliveRadar | Website Monitoring Support",
             "description": "Contact AliveRadar.",
+            "indexable": True,
+        },
+        "/ssl-dns-checker": {
+            "title": "Free SSL & DNS Checker | AliveRadar",
+            "description": "Check DNS and SSL health.",
             "indexable": True,
         },
         "/blog": {
@@ -118,6 +124,7 @@ def seo_directory(tmp_path):
             "/overview",
             "/about",
             "/contact",
+            "/ssl-dns-checker",
             "/blog",
             "/blog/devsload-com",
             "/blog/how-to-check-if-a-website-is-down",
@@ -131,6 +138,7 @@ def seo_directory(tmp_path):
             "/overview": ".prerender/overview.html",
             "/about": ".prerender/about.html",
             "/contact": ".prerender/contact.html",
+            "/ssl-dns-checker": ".prerender/ssl-dns-checker.html",
             "/blog": ".prerender/blog.html",
             "/blog/devsload-com": ".prerender/devsload-com.html",
             "/blog/how-to-check-if-a-website-is-down": ".prerender/how-to-check-if-a-website-is-down.html",

@@ -1,14 +1,16 @@
 from types import SimpleNamespace
+from datetime import timedelta
 
 import pytest
 from pydantic import ValidationError
 
 from backend.analytics import next_state, retry_delay
 from backend.auth import hash_password, password_valid
+from backend.checks import perform_network_check
 from backend.db import now, sqlalchemy_url
 from backend.diagnosis import diagnose
 from backend.schemas import MonitorInput, MonitorPatch, Registration, validate_url
-from backend.security import PinnedResolver, public_address, safe_destination
+from backend.security import Destination, PinnedResolver, public_address, safe_destination
 from backend.website_state import overall_status, website_origin
 
 
@@ -78,6 +80,46 @@ async def test_mixed_dns_and_pinning():
     assert len(calls) == 1
     with pytest.raises(ValueError):
         await resolver.resolve("other.example.com", 443)
+
+
+async def test_network_check_records_dns_health_without_opening_tls_for_http():
+    destination = Destination("http://example.com/health", "example.com", "93.184.216.34", 2, 80)
+
+    async def resolve(_):
+        return destination
+
+    result, resolved = await perform_network_check(
+        SimpleNamespace(url="http://example.com/health"), resolve
+    )
+    assert resolved == destination
+    assert result.dns_status == "RESOLVED" and result.dns_address == "93.184.216.34"
+    assert result.tls_status == "NOT_APPLICABLE"
+
+
+async def test_network_check_reports_dns_failure_and_certificate_expiry(monkeypatch):
+    from backend import checks
+
+    async def unresolved(_):
+        raise OSError("resolver unavailable")
+
+    dns_result, destination = await perform_network_check(
+        SimpleNamespace(url="https://example.com"), unresolved
+    )
+    assert destination is None and dns_result.dns_status == "FAILED"
+    assert dns_result.tls_status == "UNKNOWN"
+
+    resolved = Destination("https://example.com", "example.com", "93.184.216.34", 2, 443)
+
+    async def resolve(_):
+        return resolved
+
+    async def expires_soon(_):
+        return now() + timedelta(days=7)
+
+    monkeypatch.setattr(checks, "tls_certificate_expiry", expires_soon)
+    tls_result, _ = await perform_network_check(SimpleNamespace(url="https://example.com"), resolve)
+    assert tls_result.dns_status == "RESOLVED"
+    assert tls_result.tls_status == "EXPIRING" and tls_result.tls_days_remaining == 7
 
 
 @pytest.mark.parametrize(

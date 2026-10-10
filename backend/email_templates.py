@@ -9,7 +9,16 @@ LOGO_CID = "aliveradar-logo@inline"
 
 
 class EmailContext(TypedDict, total=False):
-    kind: Literal["outage", "recovery", "password_reset", "login_otp", "register_otp", "message"]
+    kind: Literal[
+        "outage",
+        "recovery",
+        "network_issue",
+        "network_recovery",
+        "password_reset",
+        "login_otp",
+        "register_otp",
+        "message",
+    ]
     otp_code: str
     website_name: str | None
     page_name: str | None
@@ -18,6 +27,8 @@ class EmailContext(TypedDict, total=False):
     started_at: str | None
     resolved_at: str | None
     action_url: str | None
+    network_kind: str | None
+    network_cause: str | None
 
 
 def action_link(value: str | None, origin: str) -> str | None:
@@ -66,20 +77,39 @@ def render_email(
     page = data.get("page_name") or "Your page"
     page_name = html.escape(page)
     rows: list[tuple[str, str]] = []
-    if kind in {"outage", "recovery"}:
-        outage = kind == "outage"
-        kicker = "OUTAGE DETECTED" if outage else "RECOVERY CONFIRMED"
-        heading = "An outage was detected." if outage else "Your page has recovered."
-        preheader = f"{page}: {'outage detected' if outage else 'recovery confirmed'}."
+    if kind in {"outage", "recovery", "network_issue", "network_recovery"}:
+        network = kind.startswith("network_")
+        recovered = kind in {"recovery", "network_recovery"}
+        outage = not recovered
+        signal = (data.get("network_kind") or "Network").upper()
+        if network:
+            kicker = f"{signal} {'RECOVERED' if recovered else 'ALERT'}"
+            heading = (
+                f"{signal} health has recovered."
+                if recovered
+                else f"{signal} health needs attention."
+            )
+            preheader = f"{page}: {signal.lower()} health {'recovered' if recovered else 'needs attention'}."
+            badge = f"{signal} {'RECOVERY' if recovered else 'ALERT'}"
+            intro = (
+                f"AliveRadar observed that the {signal.lower()} check for <strong>{page_name}</strong> has recovered."
+                if recovered
+                else f"AliveRadar observed a {signal.lower()} health issue for <strong>{page_name}</strong>. "
+                "Open the monitor to review the recorded signal and next steps."
+            )
+        else:
+            kicker = "OUTAGE DETECTED" if outage else "RECOVERY CONFIRMED"
+            heading = "An outage was detected." if outage else "Your page has recovered."
+            preheader = f"{page}: {'outage detected' if outage else 'recovery confirmed'}."
+            badge = "OUTAGE ALERT" if outage else "RECOVERY ALERT"
+            intro = (
+                f"AliveRadar confirmed an outage for <strong>{page_name}</strong>. "
+                "Open the incident to see the affected page and the latest observations."
+                if outage
+                else f"A healthy response was confirmed for <strong>{page_name}</strong>. "
+                "Review the incident and check how the rest of your website is doing."
+            )
         accent, tint = ("#a4473f", "#fff0ec") if outage else ("#14765b", "#eaf2e9")
-        badge = "OUTAGE ALERT" if outage else "RECOVERY ALERT"
-        intro = (
-            f"AliveRadar confirmed an outage for <strong>{page_name}</strong>. "
-            "Open the incident to see the affected page and the latest observations."
-            if outage
-            else f"A healthy response was confirmed for <strong>{page_name}</strong>. "
-            "Review the incident and check how the rest of your website is doing."
-        )
         if data.get("website_name"):
             rows.append(("Website", data["website_name"] or ""))
         rows.append(("Page", page))
@@ -87,10 +117,12 @@ def render_email(
             rows.append(("Monitored URL", data["page_url"] or ""))
         if data.get("website_status"):
             rows.append(("Website status", data["website_status"] or ""))
-        rows.append(("Incident started", timestamp(data.get("started_at"))))
-        if kind == "recovery" or data.get("resolved_at"):
+        rows.append(("First observed", timestamp(data.get("started_at"))))
+        if network and data.get("network_cause"):
+            rows.append((f"{signal} observation", data["network_cause"] or ""))
+        if recovered or data.get("resolved_at"):
             rows.append(("Recovery confirmed", timestamp(data.get("resolved_at"))))
-        button = "View incident"
+        button = "View monitor" if network else "View incident"
         note = "For the latest page and website status, open AliveRadar."
         footer = (
             "You received this update because page alerts are enabled in your AliveRadar account."

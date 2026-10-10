@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from backend.analytics import analytics
 from backend.app import app
 from backend.auth import digest
-from backend.checks import CheckResult, perform_check
+from backend.checks import CheckResult, NetworkCheckResult, perform_check
 from backend.config import settings
 from backend.db import engine, now
 from backend.deployment import database_ready
@@ -32,6 +32,7 @@ from backend.models import (
     Incident,
     Monitor,
     MonitorCheck,
+    NetworkAlert,
     NotificationDelivery,
     PasswordReset,
     User,
@@ -818,6 +819,41 @@ async def test_real_http_and_redirect_policy():
     ).error_type == "BLOCKED"
 
 
+def test_public_ssl_dns_checker_returns_only_one_time_network_results(monkeypatch):
+    from backend import resources
+
+    async def fake_check(monitor):
+        assert monitor.url == "https://example.com"
+        return (
+            NetworkCheckResult(
+                dns_status="RESOLVED",
+                dns_address="93.184.216.34",
+                tls_status="VALID",
+                tls_days_remaining=90,
+            ),
+            None,
+        )
+
+    monkeypatch.setattr(resources, "perform_network_check", fake_check)
+    response = TestClient(app).post(
+        "/api/v1/public/network-check",
+        headers={"Origin": ORIGIN},
+        json={"url": "https://example.com"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "dnsStatus": "RESOLVED",
+        "dnsAddress": "93.184.216.34",
+        "dnsError": None,
+        "dnsCheckedAt": None,
+        "tlsStatus": "VALID",
+        "tlsExpiresAt": None,
+        "tlsDaysRemaining": 90,
+        "tlsError": None,
+        "tlsCheckedAt": None,
+    }
+
+
 async def test_dns_pinning_preserves_hostname():
     url, calls = "http://never-resolve.invalid:4006/ok", []
 
@@ -872,6 +908,53 @@ async def test_smtp_acceptance_and_rejection():
         assert recovery.status == "PENDING" and recovery.delivered_at is None
         assert recovery.next_attempt_at > now()
     assert len(state["mail"]) == 1
+
+
+async def test_dns_and_ssl_alerts_are_deduplicated_and_send_recovery_email():
+    client, _ = account()
+    identifier = add(client)
+    enable(client)
+    state["mail"] = []
+    claim = claim_monitors(1)[0]
+    ssl_warning = NetworkCheckResult(
+        dns_status="RESOLVED",
+        dns_address="93.184.216.34",
+        tls_status="EXPIRING",
+        tls_days_remaining=7,
+    )
+    assert commit_check(claim, success, ssl_warning)
+    with Session(engine()) as db:
+        alert = db.scalar(select(NetworkAlert))
+        assert alert.kind == "SSL" and alert.status == "OPEN"
+        assert alert.cause == "The TLS certificate expires in 7 days."
+        assert db.scalar(select(NotificationDelivery)).event_type == "SSL_ISSUE"
+    await process_notifications()
+    assert "SSL health alert" in state["mail"][-1]
+    assert "certificate expires in 7 days" in state["mail"][-1]
+
+    with Session(engine()) as db:
+        db.execute(update(Monitor).where(Monitor.id == identifier).values(next_check_at=now()))
+        db.commit()
+    recovery_claim = claim_monitors(1)[0]
+    ssl_valid = NetworkCheckResult(
+        dns_status="RESOLVED",
+        dns_address="93.184.216.34",
+        tls_status="VALID",
+        tls_days_remaining=90,
+    )
+    assert commit_check(recovery_claim, success, ssl_valid)
+    with Session(engine()) as db:
+        assert db.scalar(select(NetworkAlert)).status == "RESOLVED"
+        assert (
+            db.scalar(
+                select(NotificationDelivery).where(
+                    NotificationDelivery.event_type == "SSL_RECOVERY"
+                )
+            )
+            is not None
+        )
+    await process_notifications()
+    assert "SSL health recovered" in state["mail"][-1]
 
 
 async def test_legacy_frozen_email_payload_keeps_content_and_gets_inline_logo():
@@ -1070,7 +1153,22 @@ def test_legacy_schema_adoption_preserves_data():
         connection.execute(text('ALTER TABLE "User" DROP COLUMN "emailVerifiedAt"'))
         connection.execute(text('ALTER TABLE "Session" DROP COLUMN "otpVerifiedAt"'))
         connection.execute(text('ALTER TABLE "Monitor" DROP COLUMN "websiteId"'))
+        for column in (
+            "dnsStatus",
+            "dnsAddress",
+            "dnsError",
+            "dnsCheckedAt",
+            "tlsStatus",
+            "tlsExpiresAt",
+            "tlsDaysRemaining",
+            "tlsError",
+            "tlsCheckedAt",
+        ):
+            connection.execute(text(f'ALTER TABLE "Monitor" DROP COLUMN "{column}"'))
         connection.execute(text('ALTER TABLE "NotificationDelivery" DROP COLUMN "messagePayload"'))
+        connection.execute(text('ALTER TABLE "NotificationDelivery" DROP COLUMN "networkAlertId"'))
+        connection.execute(text('ALTER TABLE "NotificationDelivery" DROP COLUMN "monitorId"'))
+        connection.execute(text('DROP TABLE "NetworkAlert"'))
         connection.execute(text('DROP TABLE "Website"'))
         connection.execute(text("DROP TABLE alembic_version"))
         connection.execute(

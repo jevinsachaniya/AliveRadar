@@ -1,4 +1,5 @@
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi import APIRouter, Response
@@ -6,6 +7,7 @@ from sqlalchemy import delete, func, select
 
 from backend.analytics import analytics
 from backend.auth import DB, UserId
+from backend.checks import perform_network_check
 from backend.common import ApiError, serialized
 from backend.config import settings
 from backend.db import now
@@ -20,7 +22,7 @@ from backend.models import (
     WorkerHeartbeat,
 )
 from backend.monitors import Paging, owned_monitor, page_result
-from backend.schemas import PreferenceInput, StatusPageInput, days_window
+from backend.schemas import NetworkCheckInput, PreferenceInput, StatusPageInput, days_window
 from backend.website_service import website_summaries
 
 router = APIRouter(prefix="/api/v1", tags=["Workspace"])
@@ -29,6 +31,25 @@ router = APIRouter(prefix="/api/v1", tags=["Workspace"])
 def incident_data(db, incident):
     monitor = db.get(Monitor, incident.monitor_id)
     return {**serialized(incident), "monitor": {"id": monitor.id, "name": monitor.name}}
+
+
+@router.post("/public/network-check", tags=["Public tools"])
+async def network_check(body: NetworkCheckInput):
+    """Run a one-time, SSRF-protected DNS and TLS check without storing any user data."""
+    result, _ = await perform_network_check(SimpleNamespace(url=body.url, timeout_ms=10000))
+    return serialized(
+        {
+            "dnsStatus": result.dns_status,
+            "dnsAddress": result.dns_address,
+            "dnsError": result.dns_error,
+            "dnsCheckedAt": result.dns_checked_at,
+            "tlsStatus": result.tls_status,
+            "tlsExpiresAt": result.tls_expires_at,
+            "tlsDaysRemaining": result.tls_days_remaining,
+            "tlsError": result.tls_error,
+            "tlsCheckedAt": result.tls_checked_at,
+        }
+    )
 
 
 @router.get("/overview")
@@ -163,23 +184,19 @@ def deliveries(db: DB, user_id: UserId, q: Paging):
             key: serialized(delivery)[key]
             for key in ("id", "eventType", "status", "attempts", "createdAt", "deliveredAt")
         }
-        monitor = db.scalar(
-            select(Monitor).join(Incident).where(Incident.id == delivery.incident_id)
-        )
+        monitor = db.get(Monitor, delivery.monitor_id)
         result["incident"] = {"monitor": {"name": monitor.name if monitor else "Deleted monitor"}}
         return result
 
     return page_result(
         db,
         select(NotificationDelivery)
-        .join(Incident)
-        .join(Monitor)
+        .join(Monitor, NotificationDelivery.monitor_id == Monitor.id)
         .where(Monitor.user_id == user_id)
         .order_by(NotificationDelivery.created_at.desc()),
         select(func.count())
         .select_from(NotificationDelivery)
-        .join(Incident)
-        .join(Monitor)
+        .join(Monitor, NotificationDelivery.monitor_id == Monitor.id)
         .where(Monitor.user_id == user_id),
         q,
         safe_delivery,

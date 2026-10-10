@@ -17,6 +17,7 @@ PUBLIC_PATHS = (
     "/overview",
     "/about",
     "/contact",
+    "/ssl-dns-checker",
     "/blog",
     "/blog/devsload-com",
     "/blog/how-to-check-if-a-website-is-down",

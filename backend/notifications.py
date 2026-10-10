@@ -13,7 +13,7 @@ from backend.config import settings
 from backend.db import engine, now
 from backend.email_templates import EmailContext
 from backend.mail import send_mail
-from backend.models import Incident, Monitor, NotificationDelivery, User, Website
+from backend.models import Incident, Monitor, NetworkAlert, NotificationDelivery, User, Website
 from backend.scheduler import effective_preference, notification_enabled
 from backend.website_state import overall_status
 
@@ -53,10 +53,16 @@ def message_for(identifier, token):
         )
         if not delivery or delivery.lease_token != token:
             return None
-        incident = db.get(Incident, delivery.incident_id)
-        if incident is None:
-            return None
-        monitor = db.get(Monitor, incident.monitor_id)
+        incident = db.get(Incident, delivery.incident_id) if delivery.incident_id else None
+        network_alert = (
+            db.get(NetworkAlert, delivery.network_alert_id) if delivery.network_alert_id else None
+        )
+        monitor_id = (
+            delivery.monitor_id
+            or (incident.monitor_id if incident else None)
+            or (network_alert.monitor_id if network_alert else None)
+        )
+        monitor = db.get(Monitor, monitor_id) if monitor_id else None
         if monitor is None:
             return None
         website = db.get(Website, monitor.website_id) if monitor.website_id else None
@@ -84,7 +90,12 @@ def message_for(identifier, token):
             if website
             else " ".join(monitor.name.splitlines())
         )
-        title = f"AliveRadar | {'Outage detected' if delivery.event_type == 'OUTAGE' else 'Service recovered'}: {label}"
+        recovered = delivery.event_type in {"RECOVERY", "DNS_RECOVERY", "SSL_RECOVERY"}
+        title = (
+            f"AliveRadar | {network_alert.kind} health {'recovered' if recovered else 'alert'}: {label}"
+            if network_alert
+            else f"AliveRadar | {'Service recovered' if recovered else 'Outage detected'}: {label}"
+        )
         website_info = ""
         status = None
         if website:
@@ -93,17 +104,40 @@ def message_for(identifier, token):
             website_info = (
                 f"Website: {website.name}\nCurrent website status at delivery: {status}\n"
             )
-        template: EmailContext = {
-            "kind": "outage" if delivery.event_type == "OUTAGE" else "recovery",
-            "website_name": website.name if website else None,
-            "website_status": status if website else None,
-            "page_name": monitor.name,
-            "page_url": monitor.url,
-            "started_at": serialized(incident.started_at),
-            "resolved_at": serialized(incident.resolved_at),
-            "action_url": f"{settings().app_origin}/incidents/{incident.id}",
-        }
-        body = f"{website_info}Page: {monitor.name}\nURL: {monitor.url}\nThis page is {'down' if delivery.event_type == 'OUTAGE' else 'back online'}.\n\nIncident started: {serialized(incident.started_at)}\nResolved: {serialized(incident.resolved_at)}\n\nView incident: {settings().app_origin}/incidents/{incident.id}"
+        if network_alert is not None:
+            template: EmailContext = {
+                "kind": "network_recovery" if recovered else "network_issue",
+                "network_kind": network_alert.kind,
+                "network_cause": network_alert.cause,
+                "website_name": website.name if website else None,
+                "website_status": status if website else None,
+                "page_name": monitor.name,
+                "page_url": monitor.url,
+                "started_at": serialized(network_alert.started_at),
+                "resolved_at": serialized(network_alert.resolved_at),
+                "action_url": f"{settings().app_origin}/monitors/{monitor.id}",
+            }
+            body = (
+                f"{website_info}Page: {monitor.name}\nURL: {monitor.url}\n"
+                f"{network_alert.kind} check: {'recovered' if recovered else network_alert.cause}\n\n"
+                f"First observed: {serialized(network_alert.started_at)}\n"
+                f"Recovered: {serialized(network_alert.resolved_at)}\n\n"
+                f"View monitor: {settings().app_origin}/monitors/{monitor.id}"
+            )
+        elif incident:
+            template = {
+                "kind": "recovery" if recovered else "outage",
+                "website_name": website.name if website else None,
+                "website_status": status if website else None,
+                "page_name": monitor.name,
+                "page_url": monitor.url,
+                "started_at": serialized(incident.started_at),
+                "resolved_at": serialized(incident.resolved_at),
+                "action_url": f"{settings().app_origin}/incidents/{incident.id}",
+            }
+            body = f"{website_info}Page: {monitor.name}\nURL: {monitor.url}\nThis page is {'back online' if recovered else 'down'}.\n\nIncident started: {serialized(incident.started_at)}\nResolved: {serialized(incident.resolved_at)}\n\nView incident: {settings().app_origin}/incidents/{incident.id}"
+        else:
+            return None
         # Freeze the payload so retries reuse the same provider idempotency key and body.
         delivery.message_payload = {
             "recipient": user.email,

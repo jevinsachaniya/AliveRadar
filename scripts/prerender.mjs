@@ -30,6 +30,7 @@ try {
     ['/overview', 'overview.html'],
     ['/about', 'about.html'],
     ['/contact', 'contact.html'],
+    ['/ssl-dns-checker', 'ssl-dns-checker.html'],
     ['/blog', 'blog.html'],
     ['/blog/devsload-com', 'devsload-com.html'],
     ['/blog/how-to-check-if-a-website-is-down', 'how-to-check-if-a-website-is-down.html'],

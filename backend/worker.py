@@ -7,7 +7,7 @@ from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from backend.checks import perform_check
+from backend.checks import perform_check, perform_network_check
 from backend.common import logger
 from backend.config import settings
 from backend.db import engine, new_id, now
@@ -66,8 +66,9 @@ async def run(stopped: asyncio.Event | None = None, *, handle_signals: bool = Tr
             pass
 
     async def check(claim):
-        result = await perform_check(claim)
-        await asyncio.to_thread(commit_check, claim, result)
+        network_result, destination = await perform_network_check(claim)
+        result = await perform_check(claim, destination=destination)
+        await asyncio.to_thread(commit_check, claim, result, network_result)
 
     async def checks_loop():
         while not stopped.is_set():

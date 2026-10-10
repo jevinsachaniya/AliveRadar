@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://aliveradar.example/</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/overview</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/about</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/contact</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/ssl-dns-checker</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/blog</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/blog/devsload-com</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/blog/how-to-check-if-a-website-is-down</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/blog/what-is-website-uptime-monitoring</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/blog/how-to-monitor-website-response-time</loc>
+  </url>
+  <url>
+    <loc>https://aliveradar.example/blog/how-to-get-alerts-when-your-website-goes-down</loc>
+  </url>
+</urlset>

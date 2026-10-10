@@ -214,6 +214,7 @@ export function SiteFooter({ user }: { user?: User }) {
           <Link to={user ? '/websites' : '/overview#page-health'}>Website monitoring</Link>
           <Link to={user ? '/incidents' : '/overview#page-history'}>Incident history</Link>
           <Link to={user ? '/status-pages' : '/overview#public-status'}>Status pages</Link>
+          <Link to="/ssl-dns-checker">SSL & DNS Checker</Link>
           <Link to="/about">About AliveRadar</Link>
           <Link to="/contact">Contact us</Link>
           <Link to="/blog">Blog</Link>

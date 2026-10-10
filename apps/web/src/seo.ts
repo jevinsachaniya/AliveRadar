@@ -15,6 +15,7 @@ export const publicPages = [
   '/overview',
   '/about',
   '/contact',
+  '/ssl-dns-checker',
   '/blog',
   ...blogArticlePaths,
 ] as const;
@@ -40,7 +41,7 @@ export const homeFaqs = [
   ],
   [
     'Does AliveRadar check SSL certificates or DNS records?',
-    'AliveRadar currently focuses on HTTP and HTTPS URL availability, response time and downtime monitoring. Dedicated SSL certificate and DNS record checks are not included.',
+    'AliveRadar checks whether each monitored hostname resolves to a public address and, for HTTPS pages, validates the certificate and alerts before it expires. You can also run a one-time check with the free SSL and DNS Checker.',
   ],
   [
     'Can I share a status page?',
@@ -75,6 +76,12 @@ export const pages: Record<string, Metadata> = {
     title: 'Contact AliveRadar | Website Monitoring Support',
     description:
       'Contact AliveRadar for help with website uptime monitoring, page status, downtime alerts, product feedback or support.',
+    indexable: true,
+  },
+  '/ssl-dns-checker': {
+    title: 'Free SSL & DNS Checker | Certificate Expiry Check | AliveRadar',
+    description:
+      'Check DNS resolution and SSL certificate health for a public website. See whether a hostname resolves, validate HTTPS certificates, and identify certificates close to expiry.',
     indexable: true,
   },
   '/blog': {
@@ -170,6 +177,7 @@ export function structuredData(path: string, origin: string) {
     '/overview': 'Website monitoring features',
     '/about': 'About AliveRadar',
     '/contact': 'Contact AliveRadar',
+    '/ssl-dns-checker': 'Free SSL & DNS Checker',
     '/blog': 'AliveRadar Blog',
     '/blog/devsload-com': 'DevsLoad.com: Simple Online Tools for Everyday Tasks',
     '/blog/how-to-check-if-a-website-is-down': 'How to Check If a Website Is Down',
@@ -255,6 +263,17 @@ export function structuredData(path: string, origin: string) {
       blogPost: blogArticlePaths.map((articlePath) => ({
         '@id': `${origin}${articlePath}#article`,
       })),
+    });
+  }
+  if (path === '/ssl-dns-checker') {
+    graph.push({
+      '@type': 'WebApplication',
+      name: 'AliveRadar SSL & DNS Checker',
+      applicationCategory: 'UtilitiesApplication',
+      operatingSystem: 'Web',
+      url: `${origin}${path}`,
+      description: pages[path].description,
+      isAccessibleForFree: true,
     });
   }
   if ((blogArticlePaths as readonly string[]).includes(path)) {

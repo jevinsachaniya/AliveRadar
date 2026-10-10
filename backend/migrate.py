@@ -19,7 +19,7 @@ def verify_legacy(connection):
     inspector = inspect(connection)
     for table in Base.metadata.sorted_tables:
         # Adoption verifies the immutable pre-Python baseline; later additions are migrated after stamping it.
-        if table.name in {"Website", "EmailOtpChallenge"}:
+        if table.name in {"Website", "EmailOtpChallenge", "NetworkAlert"}:
             continue
         if not inspector.has_table(table.name):
             raise RuntimeError(
@@ -27,8 +27,19 @@ def verify_legacy(connection):
             )
         actual = {column["name"] for column in inspector.get_columns(table.name)}
         additions = {
-            "Monitor": {"websiteId"},
-            "NotificationDelivery": {"messagePayload"},
+            "Monitor": {
+                "websiteId",
+                "dnsStatus",
+                "dnsAddress",
+                "dnsError",
+                "dnsCheckedAt",
+                "tlsStatus",
+                "tlsExpiresAt",
+                "tlsDaysRemaining",
+                "tlsError",
+                "tlsCheckedAt",
+            },
+            "NotificationDelivery": {"messagePayload", "networkAlertId", "monitorId"},
             "User": {"emailVerifiedAt"},
             "Session": {"otpVerifiedAt"},
         }
