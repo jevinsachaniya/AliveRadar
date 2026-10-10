@@ -12,6 +12,7 @@ import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Blog } from './pages/Blog';
 import { DevsloadPost } from './pages/BlogPost';
+import { GuideArticle } from './pages/Guides';
 import { PublicOverview } from './pages/PublicOverview';
 import { NotFound } from './pages/NotFound';
 import { pageMetadata, useSeo } from './seo';
@@ -83,9 +84,18 @@ function App() {
       </Routes>
     );
   if (
-    ['/', '/overview', '/about', '/contact', '/blog', '/blog/devsload-com'].includes(
-      location.pathname,
-    )
+    [
+      '/',
+      '/overview',
+      '/about',
+      '/contact',
+      '/blog',
+      '/blog/devsload-com',
+      '/blog/how-to-check-if-a-website-is-down',
+      '/blog/what-is-website-uptime-monitoring',
+      '/blog/how-to-monitor-website-response-time',
+      '/blog/how-to-get-alerts-when-your-website-goes-down',
+    ].includes(location.pathname)
   ) {
     const user = auth.error ? undefined : auth.data?.user;
     return (
@@ -97,6 +107,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/devsload-com" element={<DevsloadPost />} />
+          <Route path="/blog/:slug" element={<GuideArticle />} />
         </Route>
       </Routes>
     );

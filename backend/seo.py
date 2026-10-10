@@ -12,7 +12,18 @@ from fastapi.responses import HTMLResponse, Response
 
 from backend.config import settings
 
-PUBLIC_PATHS = ("/", "/overview", "/about", "/contact", "/blog", "/blog/devsload-com")
+PUBLIC_PATHS = (
+    "/",
+    "/overview",
+    "/about",
+    "/contact",
+    "/blog",
+    "/blog/devsload-com",
+    "/blog/how-to-check-if-a-website-is-down",
+    "/blog/what-is-website-uptime-monitoring",
+    "/blog/how-to-monitor-website-response-time",
+    "/blog/how-to-get-alerts-when-your-website-goes-down",
+)
 ORIGIN_TOKEN = "__ALIVERADAR_ORIGIN__"
 CSP = (
     "default-src 'self'; script-src 'self'{script}; style-src 'self' 'unsafe-inline'; "

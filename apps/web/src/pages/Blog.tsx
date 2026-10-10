@@ -2,6 +2,7 @@
 import { Link } from 'react-router-dom';
 
 import './blog.css';
+import { guides } from './Guides';
 
 export function Blog() {
   return (
@@ -10,8 +11,8 @@ export function Blog() {
         <p className="blog-eyebrow">ALIVERADAR JOURNAL</p>
         <h1 id="blog-title">Useful notes for people who keep websites online.</h1>
         <p>
-          Practical guidance on website uptime, downtime monitoring, response time and transparent
-          status communication is on its way.
+          Practical guides for checking website availability, tracking response time, handling
+          downtime alerts and keeping visitors informed.
         </p>
       </div>
 
@@ -21,6 +22,25 @@ export function Blog() {
         <span>STATUS PAGES</span>
         <span>INCIDENTS</span>
       </div>
+
+      {guides.map((guide) => (
+        <article
+          className="blog-post-card"
+          aria-labelledby={`${guide.slug}-title`}
+          key={guide.slug}
+        >
+          <div>
+            <p className="blog-eyebrow">
+              {guide.category} / {guide.readTime}
+            </p>
+            <h2 id={`${guide.slug}-title`}>{guide.title}</h2>
+            <p>{guide.excerpt}</p>
+          </div>
+          <Link className="blog-link" to={`/blog/${guide.slug}`}>
+            Read guide <ArrowRight size={17} />
+          </Link>
+        </article>
+      ))}
 
       <article className="blog-post-card" aria-labelledby="devsload-post-title">
         <div>

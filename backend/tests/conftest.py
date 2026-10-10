@@ -15,6 +15,13 @@ def seo_directory(tmp_path):
         ("contact.html", "Let's keep your important pages visible"),
         ("blog.html", "Useful notes for people who keep websites online"),
         ("devsload-com.html", "DevsLoad.com: simple online tools for everyday digital work"),
+        ("how-to-check-if-a-website-is-down.html", "How to Check If a Website Is Down"),
+        ("what-is-website-uptime-monitoring.html", "What Is Website Uptime Monitoring?"),
+        ("how-to-monitor-website-response-time.html", "How to Monitor Website Response Time"),
+        (
+            "how-to-get-alerts-when-your-website-goes-down.html",
+            "How to Get Alerts When Your Website Goes Down",
+        ),
         ("404.html", "Page not found"),
     ]:
         (tmp_path / ".prerender" / filename).write_text(
@@ -52,6 +59,26 @@ def seo_directory(tmp_path):
             "description": "A guide to DevsLoad.",
             "indexable": True,
         },
+        "/blog/how-to-check-if-a-website-is-down": {
+            "title": "How to Check If a Website Is Down | AliveRadar",
+            "description": "A practical guide to checking a website outage and the next troubleshooting steps.",
+            "indexable": True,
+        },
+        "/blog/what-is-website-uptime-monitoring": {
+            "title": "What Is Website Uptime Monitoring? | AliveRadar",
+            "description": "A practical guide to observed website uptime monitoring and page-level checks.",
+            "indexable": True,
+        },
+        "/blog/how-to-monitor-website-response-time": {
+            "title": "How to Monitor Website Response Time | AliveRadar",
+            "description": "A practical guide to tracking website response time and slow pages.",
+            "indexable": True,
+        },
+        "/blog/how-to-get-alerts-when-your-website-goes-down": {
+            "title": "How to Get Alerts When Your Website Goes Down | AliveRadar",
+            "description": "A practical guide to website downtime alerts and recovery messages.",
+            "indexable": True,
+        },
         **{
             path: {
                 "title": "Account | AliveRadar",
@@ -86,7 +113,18 @@ def seo_directory(tmp_path):
             "indexable": False,
             "notFound": True,
         },
-        "publicPages": ["/", "/overview", "/about", "/contact", "/blog", "/blog/devsload-com"],
+        "publicPages": [
+            "/",
+            "/overview",
+            "/about",
+            "/contact",
+            "/blog",
+            "/blog/devsload-com",
+            "/blog/how-to-check-if-a-website-is-down",
+            "/blog/what-is-website-uptime-monitoring",
+            "/blog/how-to-monitor-website-response-time",
+            "/blog/how-to-get-alerts-when-your-website-goes-down",
+        ],
         "socialImage": "/brand/aliveradar-mark.png",
         "prerender": {
             "/": ".prerender/home.html",
@@ -95,6 +133,10 @@ def seo_directory(tmp_path):
             "/contact": ".prerender/contact.html",
             "/blog": ".prerender/blog.html",
             "/blog/devsload-com": ".prerender/devsload-com.html",
+            "/blog/how-to-check-if-a-website-is-down": ".prerender/how-to-check-if-a-website-is-down.html",
+            "/blog/what-is-website-uptime-monitoring": ".prerender/what-is-website-uptime-monitoring.html",
+            "/blog/how-to-monitor-website-response-time": ".prerender/how-to-monitor-website-response-time.html",
+            "/blog/how-to-get-alerts-when-your-website-goes-down": ".prerender/how-to-get-alerts-when-your-website-goes-down.html",
             "/not-found": ".prerender/404.html",
         },
         "schemas": {

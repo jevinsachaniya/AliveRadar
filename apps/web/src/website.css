@@ -274,7 +274,7 @@ select:focus {
   height: 6px;
 }
 .hero-copy h1 {
-  font-size: clamp(48px, 5.5vw, 76px);
+  font-size: clamp(42px, 4.7vw, 64px);
   line-height: 1.12;
   font-weight: 650;
   letter-spacing: -4.5px;
@@ -1423,7 +1423,7 @@ select:focus {
     padding-bottom: 65px;
   }
   .hero-copy h1 {
-    font-size: 59px;
+    font-size: 53px;
     letter-spacing: -3px;
   }
   .hero-copy > p {
@@ -1550,7 +1550,7 @@ select:focus {
     border-top: 1px solid var(--line);
   }
   .hero-copy h1 {
-    font-size: 53px;
+    font-size: 48px;
   }
   .hero-reassurance {
     gap: 13px;
@@ -1693,7 +1693,7 @@ select:focus {
     min-height: auto;
   }
   .hero-copy h1 {
-    font-size: 55px;
+    font-size: 49px;
     letter-spacing: -3.1px;
     margin: 22px 0 25px;
   }
@@ -2113,7 +2113,7 @@ select:focus {
     display: none;
   }
   .hero-copy h1 {
-    font-size: 49px;
+    font-size: 44px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

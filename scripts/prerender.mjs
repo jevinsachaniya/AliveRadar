@@ -32,6 +32,13 @@ try {
     ['/contact', 'contact.html'],
     ['/blog', 'blog.html'],
     ['/blog/devsload-com', 'devsload-com.html'],
+    ['/blog/how-to-check-if-a-website-is-down', 'how-to-check-if-a-website-is-down.html'],
+    ['/blog/what-is-website-uptime-monitoring', 'what-is-website-uptime-monitoring.html'],
+    ['/blog/how-to-monitor-website-response-time', 'how-to-monitor-website-response-time.html'],
+    [
+      '/blog/how-to-get-alerts-when-your-website-goes-down',
+      'how-to-get-alerts-when-your-website-goes-down.html',
+    ],
     ['/not-found', '404.html'],
   ]) {
     const markup = seo.renderPage(path);

@@ -3,13 +3,20 @@ import { useEffect } from 'react';
 export const ORIGIN_TOKEN = '__ALIVERADAR_ORIGIN__';
 export const socialImage = '/brand/aliveradar-mark.png';
 export const socialImageAlt = 'AliveRadar logo for website uptime monitoring';
+export const blogArticlePaths = [
+  '/blog/devsload-com',
+  '/blog/how-to-check-if-a-website-is-down',
+  '/blog/what-is-website-uptime-monitoring',
+  '/blog/how-to-monitor-website-response-time',
+  '/blog/how-to-get-alerts-when-your-website-goes-down',
+] as const;
 export const publicPages = [
   '/',
   '/overview',
   '/about',
   '/contact',
   '/blog',
-  '/blog/devsload-com',
+  ...blogArticlePaths,
 ] as const;
 export type Metadata = {
   title: string;
@@ -47,9 +54,9 @@ export const homeFaqs = [
 
 export const pages: Record<string, Metadata> = {
   '/': {
-    title: 'Website Uptime Monitoring, Status & Alerts | AliveRadar',
+    title: 'Website Uptime Monitoring & Downtime Alerts | AliveRadar',
     description:
-      'Monitor website uptime page by page. Check URL availability and response time, receive downtime alerts, and share website status updates with AliveRadar.',
+      'Monitor individual website pages, track response times, and get email alerts when a page goes down or recovers. Keep your website on your radar with AliveRadar.',
     indexable: true,
   },
   '/overview': {
@@ -80,6 +87,30 @@ export const pages: Record<string, Metadata> = {
     title: 'DevsLoad.com: Simple Online Tools for Everyday Tasks | AliveRadar',
     description:
       'An AliveRadar journal look at DevsLoad, a growing collection of simple free online tools, and why dependable page availability matters.',
+    indexable: true,
+  },
+  '/blog/how-to-check-if-a-website-is-down': {
+    title: 'How to Check If a Website Is Down | AliveRadar',
+    description:
+      'Learn how to check whether a website or specific page is down, read HTTP errors, confirm an outage and choose the next troubleshooting step.',
+    indexable: true,
+  },
+  '/blog/what-is-website-uptime-monitoring': {
+    title: 'What Is Website Uptime Monitoring? | AliveRadar',
+    description:
+      'Understand website uptime monitoring, page-level checks, observed availability, incident confirmation and recovery alerts for important URLs.',
+    indexable: true,
+  },
+  '/blog/how-to-monitor-website-response-time': {
+    title: 'How to Monitor Website Response Time | AliveRadar',
+    description:
+      'Learn how to monitor website response time, identify slow pages, set useful timeouts and investigate performance changes with observed data.',
+    indexable: true,
+  },
+  '/blog/how-to-get-alerts-when-your-website-goes-down': {
+    title: 'How to Get Alerts When Your Website Goes Down | AliveRadar',
+    description:
+      'Set up practical website downtime and recovery alerts for important pages, reduce noise and give your team the context needed to respond.',
     indexable: true,
   },
   ...Object.fromEntries(
@@ -141,6 +172,11 @@ export function structuredData(path: string, origin: string) {
     '/contact': 'Contact AliveRadar',
     '/blog': 'AliveRadar Blog',
     '/blog/devsload-com': 'DevsLoad.com: Simple Online Tools for Everyday Tasks',
+    '/blog/how-to-check-if-a-website-is-down': 'How to Check If a Website Is Down',
+    '/blog/what-is-website-uptime-monitoring': 'What Is Website Uptime Monitoring?',
+    '/blog/how-to-monitor-website-response-time': 'How to Monitor Website Response Time',
+    '/blog/how-to-get-alerts-when-your-website-goes-down':
+      'How to Get Alerts When Your Website Goes Down',
   } as const;
   const graph: Array<Record<string, unknown>> = [
     {
@@ -181,7 +217,7 @@ export function structuredData(path: string, origin: string) {
     const itemListElement = [
       { '@type': 'ListItem', position: 1, name: 'Home', item: `${origin}/` },
     ];
-    if (path === '/blog/devsload-com')
+    if ((blogArticlePaths as readonly string[]).includes(path))
       itemListElement.push({
         '@type': 'ListItem',
         position: 2,
@@ -216,14 +252,16 @@ export function structuredData(path: string, origin: string) {
       name: 'AliveRadar Blog',
       url: `${origin}/blog`,
       publisher: { '@id': `${origin}/#organization` },
-      blogPost: { '@id': `${origin}/blog/devsload-com#article` },
+      blogPost: blogArticlePaths.map((articlePath) => ({
+        '@id': `${origin}${articlePath}#article`,
+      })),
     });
   }
-  if (path === '/blog/devsload-com') {
+  if ((blogArticlePaths as readonly string[]).includes(path)) {
     graph.push({
       '@type': 'Article',
-      '@id': `${origin}/blog/devsload-com#article`,
-      headline: 'DevsLoad.com: Simple Online Tools for Everyday Digital Work',
+      '@id': `${origin}${path}#article`,
+      headline: pages[path].title.replace(' | AliveRadar', ''),
       description: pages[path].description,
       mainEntityOfPage: { '@id': `${origin}${path}#webpage` },
       author: { '@id': `${origin}/#organization` },

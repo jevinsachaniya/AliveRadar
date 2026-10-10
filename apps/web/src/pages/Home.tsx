@@ -74,37 +74,27 @@ export function Home({ user }: { user?: User }) {
           <div className="hero-eyebrow">
             <span className="live-dot" /> EVERY PAGE, ON YOUR RADAR.
           </div>
-          <h1>
-            Your website.
-            <br />
-            On our{' '}
-            <span className="hero-highlight">
-              radar.
-              <svg viewBox="0 0 330 18" aria-hidden="true">
-                <path d="M4 12C84 2 189 2 324 10" />
-              </svg>
-            </span>
-          </h1>
+          <h1>Website Uptime Monitoring for Every Important Page</h1>
           <p>
-            AliveRadar is a website uptime checker that watches your important URLs page by page.
-            See what is online, find the exact page that needs attention, and get an email when it
-            goes down or comes back.
+            Monitor your homepage, login, checkout and other important URLs independently. Track
+            availability and response times, receive downtime and recovery alerts, and share service
+            status with your visitors.
           </p>
           <div className="hero-actions">
             {user ? (
               <button className="button primary hero-primary" onClick={() => setAddWebsite(true)}>
-                <Plus size={18} /> Add your website <ArrowUpRight size={18} />
+                <Plus size={18} /> Start Monitoring <ArrowUpRight size={18} />
               </button>
             ) : (
               <Link
                 className="button primary hero-primary"
                 to={authPath('/login', addWebsiteTarget)}
               >
-                Start monitoring <ArrowUpRight size={18} />
+                Start Monitoring <ArrowUpRight size={18} />
               </Link>
             )}
             <a className="hero-secondary" href="#how-it-works">
-              See how it works <ArrowDown size={15} />
+              See How It Works <ArrowDown size={15} />
             </a>
           </div>
           <div className="hero-reassurance">
@@ -481,7 +471,7 @@ export function Home({ user }: { user?: User }) {
           </button>
         ) : (
           <Link className="button primary" to={authPath('/login', addWebsiteTarget)}>
-            Start monitoring <ArrowUpRight size={19} />
+            Start Monitoring <ArrowUpRight size={19} />
           </Link>
         )}
       </section>

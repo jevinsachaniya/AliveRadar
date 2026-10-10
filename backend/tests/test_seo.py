@@ -56,6 +56,13 @@ def site(seo_directory, monkeypatch):
         ("/contact", "Let's keep your important pages visible"),
         ("/blog", "Useful notes for people who keep websites online"),
         ("/blog/devsload-com", "DevsLoad.com: simple online tools for everyday digital work"),
+        ("/blog/how-to-check-if-a-website-is-down", "How to Check If a Website Is Down"),
+        ("/blog/what-is-website-uptime-monitoring", "What Is Website Uptime Monitoring?"),
+        ("/blog/how-to-monitor-website-response-time", "How to Monitor Website Response Time"),
+        (
+            "/blog/how-to-get-alerts-when-your-website-goes-down",
+            "How to Get Alerts When Your Website Goes Down",
+        ),
     ],
 )
 def test_public_html_has_content_and_route_metadata_without_javascript(site, path, heading):
@@ -158,6 +165,10 @@ def test_sitemap_lists_only_canonical_public_urls_and_robots_allow_resources(sit
         cfg.app_origin + "/contact",
         cfg.app_origin + "/blog",
         cfg.app_origin + "/blog/devsload-com",
+        cfg.app_origin + "/blog/how-to-check-if-a-website-is-down",
+        cfg.app_origin + "/blog/what-is-website-uptime-monitoring",
+        cfg.app_origin + "/blog/how-to-monitor-website-response-time",
+        cfg.app_origin + "/blog/how-to-get-alerts-when-your-website-goes-down",
     ]
     robots = client.get("/robots.txt")
     assert "Allow: /" in robots.text and f"Sitemap: {cfg.app_origin}/sitemap.xml" in robots.text
