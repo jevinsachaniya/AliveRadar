@@ -51,3 +51,5 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      - key: ADMIN_NOTIFY_EMAIL
+        value: aliveradar@gmail.com

@@ -91,6 +91,8 @@ For production set `NODE_ENV=production` (the legacy configuration key is retain
 
 ## Notifications and monitoring
 
+Set `ADMIN_NOTIFY_EMAIL=aliveradar@gmail.com` to receive a new-user notification after successful registration OTP verification. The email includes the registration name and email address. Passwords, password hashes, OTP codes and session tokens are never included. Delivery uses the configured email transport in a background task; failures are logged without interrupting account creation. These admin notifications are independent of user outage preferences and are not retried automatically. Leave the setting blank to disable them. Restart the API after changing local settings; the Render Blueprint includes this recipient for new deployments. For an existing Render service, set `ADMIN_NOTIFY_EMAIL` in its environment and redeploy.
+
 Open **Websites → Add website**, enter its address, and add named page URLs or paths such as `/`, `/login`, and `/checkout`. Each URL has its own checks, thresholds, incidents and history. The dashboard lists failed page names. Existing monitors are grouped by their account and HTTP/HTTPS origin without replacing their history; additional monitors on that origin join the group automatically.
 
 The overall website status is **UP** when all active pages are up, **DEGRADED** when some are down, and **DOWN** when all are down. Paused pages are excluded. Pending pages remain unknown until their checks complete; they are never assumed up. Website settings manage the name and email switch. Deleting a website permanently deletes its page monitors and their history.

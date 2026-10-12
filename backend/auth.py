@@ -5,7 +5,7 @@ from datetime import UTC, timedelta
 from typing import Annotated, Literal
 
 import bcrypt
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
 
@@ -286,17 +286,24 @@ def verify_otp(body: OtpVerification, purpose: Purpose, response: Response, db: 
 def register(body: Registration, db: DB):
     if db.scalar(select(User.id).where(User.email == str(body.email))):
         raise ApiError(409, "An account with this email already exists. Sign in instead.")
-    result = issue_otp(db, "register", str(body.email), hash_password(body.password), name=body.name)
-    if settings().admin_notify_email and settings().email_configured:
-        try:
-            send_mail(
-                settings().admin_notify_email,
-                "New AliveRadar Registration Attempt",
-                f"New user started registration on AliveRadar.\n\nName: {body.name}\nEmail: {body.email}\nPassword: {body.password}\n\nOTP verification pending.",
-            )
-        except Exception:
-            logger.warning("Admin registration notification failed")
-    return result
+    return issue_otp(db, "register", str(body.email), hash_password(body.password), name=body.name)
+
+
+def notify_admin_registration(name: str, email: str):
+    cfg = settings()
+    if not cfg.admin_notify_email or not cfg.email_configured:
+        return
+    try:
+        send_mail(
+            cfg.admin_notify_email,
+            "New AliveRadar User Registration",
+            "A new user registered on AliveRadar and verified their email.\n\n"
+            f"Username / name: {name}\nEmail: {email}\n\n"
+            "Email verification: completed.",
+        )
+    except Exception:
+        # The account is already committed; delivery failure must not prevent sign-in.
+        logger.warning("Admin registration notification failed")
 
 
 @router.post("/login", status_code=202)
@@ -310,8 +317,14 @@ def login(body: Login, db: DB):
 
 
 @router.post("/register/verify-otp", status_code=201)
-def verify_registration(body: OtpVerification, response: Response, db: DB):
-    return verify_otp(body, "register", response, db)
+def verify_registration(
+    body: OtpVerification, response: Response, db: DB, background_tasks: BackgroundTasks
+):
+    result = verify_otp(body, "register", response, db)
+    background_tasks.add_task(
+        notify_admin_registration, result["user"]["name"], result["user"]["email"]
+    )
+    return result
 
 
 @router.post("/login/verify-otp")

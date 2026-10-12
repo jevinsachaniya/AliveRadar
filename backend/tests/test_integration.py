@@ -113,10 +113,14 @@ def clean():
 
 
 def latest_otp():
-    message = Parser(policy=policy.default).parsestr(state["mail"][-1])
-    return re.search(
-        r"code is: ([0-9]{6})", message.get_body(preferencelist=("plain",)).get_content()
-    ).group(1)
+    for captured in reversed(state["mail"]):
+        message = Parser(policy=policy.default).parsestr(captured)
+        match = re.search(
+            r"code is: ([0-9]{6})", message.get_body(preferencelist=("plain",)).get_content()
+        )
+        if match:
+            return match.group(1)
+    raise AssertionError("No OTP email was captured")
 
 
 def test_render_database_health_does_not_require_running_worker():
@@ -201,6 +205,104 @@ def complete_otp(client, challenge, purpose="register"):
         headers={"Origin": ORIGIN},
         json={"token": challenge["token"], "code": latest_otp()},
     )
+
+
+@pytest.mark.parametrize("reject_notification", [False, True])
+def test_admin_registration_notification_after_verification(
+    monkeypatch, caplog, reject_notification
+):
+    from backend import auth
+
+    monkeypatch.setattr(settings(), "admin_notify_email", "aliveradar@gmail.com")
+    sender = auth.send_mail
+    notifications = []
+
+    def send(recipient, subject, body, *args, **kwargs):
+        if recipient == "aliveradar@gmail.com":
+            # Check account persistence before sending, even when the provider rejects mail.
+            with Session(engine()) as db:
+                user = db.scalar(select(User).where(User.email == "new-user@example.com"))
+                assert user is not None and user.email_verified_at is not None
+                assert user.password_hash not in body
+            notifications.append((recipient, subject, body))
+            if reject_notification:
+                raise RuntimeError("private-provider-error")
+        return sender(recipient, subject, body, *args, **kwargs)
+
+    monkeypatch.setattr(auth, "send_mail", send)
+    client = TestClient(app)
+    payload = {
+        "name": "New User",
+        "email": "new-user@example.com",
+        "password": "a-secure-password-123",
+    }
+    pending = client.post("/api/v1/auth/register", headers={"Origin": ORIGIN}, json=payload)
+    assert pending.status_code == 202, pending.text
+    assert not notifications and len(state["mail"]) == 1
+    assert count(User) == 0
+    code = latest_otp()
+    token = pending.json()["token"]
+    wrong = client.post(
+        "/api/v1/auth/register/verify-otp",
+        headers={"Origin": ORIGIN},
+        json={"token": token, "code": "000000" if code != "000000" else "000001"},
+    )
+    assert wrong.status_code == 400 and not notifications
+    response = complete_otp(client, pending.json())
+    assert response.status_code == 201, response.text
+    assert len(notifications) == 1
+    recipient, subject, body = notifications[0]
+    assert recipient == "aliveradar@gmail.com"
+    assert subject == "New AliveRadar User Registration"
+    assert "Username / name: New User" in body
+    assert "Email: new-user@example.com" in body
+    for secret in [payload["password"], token, code, response.json()["csrfToken"]]:
+        assert secret not in body
+    assert "password" not in body.lower()
+    assert client.get("/api/v1/auth/me").status_code == 200
+    client.headers.update({"Origin": ORIGIN, "X-CSRF-Token": response.json()["csrfToken"]})
+    if reject_notification:
+        assert "Admin registration notification failed" in caplog.text
+        assert "private-provider-error" not in caplog.text
+        assert len(state["mail"]) == 1
+    else:
+        message = Parser(policy=policy.default).parsestr(state["mail"][-1])
+        assert message["To"] == recipient
+        plain = message.get_body(preferencelist=("plain",)).get_content().replace("\r\n", "\n")
+        assert plain.strip() == body
+        assert "New User" in message.get_body(preferencelist=("html",)).get_content()
+
+    replay = client.post(
+        "/api/v1/auth/register/verify-otp",
+        headers={"Origin": ORIGIN},
+        json={"token": token, "code": code},
+    )
+    assert replay.status_code == 400 and len(notifications) == 1
+    duplicate = client.post("/api/v1/auth/register", headers={"Origin": ORIGIN}, json=payload)
+    assert duplicate.status_code == 409 and len(notifications) == 1
+    login = client.post(
+        "/api/v1/auth/login",
+        headers={"Origin": ORIGIN},
+        json={"email": payload["email"], "password": payload["password"]},
+    )
+    assert login.status_code == 202, login.text
+    assert complete_otp(client, login.json(), "login").status_code == 200
+    assert len(notifications) == 1
+
+
+def test_admin_registration_notification_can_be_disabled(monkeypatch):
+    monkeypatch.setattr(settings(), "admin_notify_email", "")
+    client, _ = account()
+    assert client.get("/api/v1/auth/me").status_code == 200
+    # account() clears captured mail, so use another registration to inspect delivery.
+    pending = client.post(
+        "/api/v1/auth/register",
+        json={"name": "Other User", "email": "other@example.com", "password": "other-password-123"},
+    )
+    assert pending.status_code == 202, pending.text
+    assert complete_otp(client, pending.json()).status_code == 201
+    assert len(state["mail"]) == 1
+    assert Parser(policy=policy.default).parsestr(state["mail"][0])["To"] == "other@example.com"
 
 
 def account(email="a@example.com"):
@@ -1149,6 +1251,8 @@ def test_legacy_schema_adoption_preserves_data():
     result(identifier)
     root = Path(__file__).resolve().parents[1] / "migrations/sql"
     with engine().begin() as connection:
+        connection.execute(text('DROP TABLE "PublicServiceCheck"'))
+        connection.execute(text('DROP TABLE "PublicService"'))
         connection.execute(text('DROP TABLE "EmailOtpChallenge"'))
         connection.execute(text('ALTER TABLE "User" DROP COLUMN "emailVerifiedAt"'))
         connection.execute(text('ALTER TABLE "Session" DROP COLUMN "otpVerifiedAt"'))
