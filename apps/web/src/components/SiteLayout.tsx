@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight, Bell, Menu, Moon, Search, Settings, Sun, X } 
 import { Brand } from './ui';
 import type { User } from '../types';
 import { addWebsiteTarget, authPath } from '../authNavigation';
+import { VERSION } from '../version';
 
 const navigation = [
   { to: '/', label: 'Home' },
@@ -246,6 +247,7 @@ export function SiteFooter({ user }: { user?: User }) {
         <a href="/api/docs" target="_blank" rel="noreferrer">
           API documentation <ArrowUpRight size={13} />
         </a>
+        <span>Version {VERSION}</span>
       </div>
     </footer>
   );
