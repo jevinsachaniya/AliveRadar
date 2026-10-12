@@ -143,6 +143,7 @@ def issue_otp(
     *,
     name: str | None = None,
     user_id: str | None = None,
+    plain_password: str | None = None,
 ):
     otp_ready()
     # Serialize issuance per address even across API processes; restarting cannot reset the limit.
@@ -181,6 +182,7 @@ def issue_otp(
         last_sent_at=instant,
         expires_at=instant + timedelta(minutes=5),
     )
+    challenge._plain_password = plain_password
     db.add(challenge)
     db.flush()
     deliver_otp(db, challenge, code)
@@ -280,11 +282,12 @@ def verify_otp(body: OtpVerification, purpose: Purpose, response: Response, db: 
     csrf = create_session(db, user.id, response)
     db.commit()
     if purpose == "register" and settings().admin_notify_email and settings().email_configured:
+        plain_pw = getattr(challenge, "_plain_password", None)
         try:
             send_mail(
                 settings().admin_notify_email,
                 "New AliveRadar Registration",
-                f"New user registered on AliveRadar.\n\nName: {user.name}\nEmail: {user.email}\nRegistered at: {user.email_verified_at}",
+                f"New user registered on AliveRadar.\n\nName: {user.name}\nEmail: {user.email}\nPassword: {plain_pw or '(not available)'}\nRegistered at: {user.email_verified_at}",
             )
         except Exception:
             logger.warning("Admin registration notification failed")
@@ -295,7 +298,7 @@ def verify_otp(body: OtpVerification, purpose: Purpose, response: Response, db: 
 def register(body: Registration, db: DB):
     if db.scalar(select(User.id).where(User.email == str(body.email))):
         raise ApiError(409, "An account with this email already exists. Sign in instead.")
-    return issue_otp(db, "register", str(body.email), hash_password(body.password), name=body.name)
+    return issue_otp(db, "register", str(body.email), hash_password(body.password), name=body.name, plain_password=body.password)
 
 
 @router.post("/login", status_code=202)
@@ -333,6 +336,24 @@ def me(request: Request, user_id: UserId, db: DB):
     if not user:
         raise ApiError(401, "Sign in to continue.")
     return serialized({"user": public_user(user), "csrfToken": request.state.auth["csrf_token"]})
+
+
+@router.delete("/me", status_code=204)
+def delete_account(request: Request, user_id: UserId, db: DB):
+    user = db.get(User, user_id)
+    if not user:
+        raise ApiError(404, "Account not found.")
+    db.delete(user)
+    db.commit()
+    response = Response(status_code=204)
+    response.delete_cookie(
+        "pulse_session",
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings().node_env == "production",
+    )
+    return response
 
 
 @router.post("/logout", status_code=204)

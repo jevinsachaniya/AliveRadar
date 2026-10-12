@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogOut, Activity, ExternalLink, Shield, UserRound } from 'lucide-react';
+import { LogOut, Activity, ExternalLink, Shield, UserRound, Trash2 } from 'lucide-react';
 import { api, setCsrf } from '../api';
 import type { User, Overview } from '../types';
 import { localDateTime } from '../components/ui';
@@ -13,6 +14,20 @@ export function Settings({ user }: { user: User }) {
     queryFn: () => api<Overview>('/overview'),
     refetchInterval: 15000,
   });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  async function deleteAccount() {
+    setDeleting(true);
+    try {
+      await api('/auth/me', { method: 'DELETE' });
+      setCsrf('');
+      client.clear();
+      navigate('/register');
+    } catch (e) {
+      toast.error((e as Error).message);
+      setDeleting(false);
+    }
+  }
   async function logout() {
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -125,6 +140,35 @@ export function Settings({ user }: { user: User }) {
             Open docs
             <ExternalLink size={14} />
           </a>
+        </div>
+      </section>
+      <section className="panel settings-panel">
+        <div className="panel-title-row">
+          <div className="panel-title">
+            <Trash2 size={18} />
+            <h2>Danger zone</h2>
+          </div>
+        </div>
+        <div className="setting-row">
+          <div>
+            <h3>Delete account</h3>
+            <p>Permanently delete your account, all websites, monitors, and history. This cannot be undone.</p>
+          </div>
+          {!confirmDelete ? (
+            <button className="button danger" onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={15} />
+              Delete account
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="button secondary" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                Cancel
+              </button>
+              <button className="button danger" onClick={() => void deleteAccount()} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Yes, delete everything'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
       <div className="security-note">
