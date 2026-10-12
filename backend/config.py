@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_pass: str = Field(default="", repr=False)
     smtp_from: str = "AliveRadar <alerts@example.com>"
+    admin_notify_email: str = ""
 
     @model_validator(mode="after")
     def production_security(self):

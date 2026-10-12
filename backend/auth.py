@@ -279,6 +279,15 @@ def verify_otp(body: OtpVerification, purpose: Purpose, response: Response, db: 
     challenge.consumed_at = now()
     csrf = create_session(db, user.id, response)
     db.commit()
+    if purpose == "register" and settings().admin_notify_email and settings().email_configured:
+        try:
+            send_mail(
+                settings().admin_notify_email,
+                "New AliveRadar Registration",
+                f"New user registered on AliveRadar.\n\nName: {user.name}\nEmail: {user.email}\nRegistered at: {user.email_verified_at}",
+            )
+        except Exception:
+            logger.warning("Admin registration notification failed")
     return serialized({"user": public_user(user), "csrfToken": csrf})
 
 
