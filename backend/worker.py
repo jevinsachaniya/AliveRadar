@@ -4,7 +4,6 @@ import time
 from datetime import timedelta
 
 from sqlalchemy import delete
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from backend.checks import perform_check, perform_network_check
@@ -24,14 +23,24 @@ from backend.scheduler import claim_monitors, commit_check
 
 def heartbeat(identifier, cleanup=False):
     with Session(engine()) as db:
-        statement = insert(WorkerHeartbeat).values(
-            id=identifier, updated_at=now(), started_at=now()
-        )
-        db.execute(
-            statement.on_conflict_do_update(
-                index_elements=[WorkerHeartbeat.id], set_={"updatedAt": now()}
+        if db.get_bind().dialect.name == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            db.execute(
+                mysql_insert(WorkerHeartbeat)
+                .values(id=identifier, updated_at=now(), started_at=now())
+                .on_duplicate_key_update(updatedAt=now())
             )
-        )
+        else:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            db.execute(
+                pg_insert(WorkerHeartbeat)
+                .values(id=identifier, updated_at=now(), started_at=now())
+                .on_conflict_do_update(
+                    index_elements=[WorkerHeartbeat.id], set_={"updatedAt": now()}
+                )
+            )
         if cleanup:
             for model, where in [
                 (

@@ -19,17 +19,39 @@ from backend.models import (
 
 def claim_monitors(limit: int, lease_seconds: int = 90):
     with Session(engine(), expire_on_commit=False) as db:
-        query = text(
-            """WITH due AS (SELECT id FROM "Monitor" WHERE "isActive"=true AND "nextCheckAt"<=NOW() AND ("leaseUntil" IS NULL OR "leaseUntil"<NOW()) ORDER BY "nextCheckAt" FOR UPDATE SKIP LOCKED LIMIT :limit) UPDATE "Monitor" m SET "leaseUntil"=NOW()+(:seconds*interval '1 second'), "leaseToken"=:token FROM due WHERE m.id=due.id RETURNING m.*"""
-        )
-        rows = list(
-            db.scalars(
-                select(Monitor).from_statement(query),
-                {"limit": limit, "seconds": lease_seconds, "token": secrets.token_hex(32)},
+        if db.get_bind().dialect.name == "mysql":
+            token = secrets.token_hex(32)
+            due_ids = list(
+                db.scalars(
+                    text(
+                        """SELECT id FROM `Monitor` WHERE `isActive`=1 AND `nextCheckAt`<=NOW() AND (`leaseUntil` IS NULL OR `leaseUntil`<NOW()) ORDER BY `nextCheckAt` LIMIT :limit FOR UPDATE SKIP LOCKED"""
+                    ),
+                    {"limit": limit},
+                )
             )
-        )
-        db.commit()
-        return rows
+            if not due_ids:
+                return []
+            db.execute(
+                text(
+                    """UPDATE `Monitor` SET `leaseUntil`=DATE_ADD(NOW(), INTERVAL :seconds SECOND), `leaseToken`=:token WHERE id IN :ids"""
+                ),
+                {"seconds": lease_seconds, "token": token, "ids": tuple(due_ids)},
+            )
+            rows = list(db.scalars(select(Monitor).where(Monitor.id.in_(due_ids))))
+            db.commit()
+            return rows
+        else:
+            query = text(
+                """WITH due AS (SELECT id FROM "Monitor" WHERE "isActive"=true AND "nextCheckAt"<=NOW() AND ("leaseUntil" IS NULL OR "leaseUntil"<NOW()) ORDER BY "nextCheckAt" FOR UPDATE SKIP LOCKED LIMIT :limit) UPDATE "Monitor" m SET "leaseUntil"=NOW()+(:seconds*interval '1 second'), "leaseToken"=:token FROM due WHERE m.id=due.id RETURNING m.*"""
+            )
+            rows = list(
+                db.scalars(
+                    select(Monitor).from_statement(query),
+                    {"limit": limit, "seconds": lease_seconds, "token": secrets.token_hex(32)},
+                )
+            )
+            db.commit()
+            return rows
 
 
 def effective_preference(db, monitor):

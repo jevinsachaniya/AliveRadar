@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError

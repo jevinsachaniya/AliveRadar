@@ -42,6 +42,17 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode()
 
 
+def lock_otp(db: Session, key_str: str) -> None:
+    if db.get_bind().dialect.name == "mysql":
+        lock_name = hashlib.sha256(key_str.encode()).hexdigest()
+        db.execute(text("SELECT GET_LOCK(:key, 5)"), {"key": lock_name})
+    else:
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+            {"key": key_str},
+        )
+
+
 def password_valid(password: str, password_hash: str | None) -> bool:
     try:
         # bcryptjs historically truncates login inputs to 72 UTF-8 bytes.
@@ -146,10 +157,7 @@ def issue_otp(
 ):
     otp_ready()
     # Serialize issuance per address even across API processes; restarting cannot reset the limit.
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"otp:{purpose}:{email}"},
-    )
+    lock_otp(db, f"otp:{purpose}:{email}")
     instant = now()
     recent = list(
         db.scalars(
@@ -216,10 +224,7 @@ def resend_otp(body: OtpToken, purpose: Purpose, db: Session):
     )
     if address is None:
         raise ApiError(400, "This verification is no longer valid. Start again.")
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"otp:{purpose}:{address}"},
-    )
+    lock_otp(db, f"otp:{purpose}:{address}")
     challenge = active_challenge(db, body.token, purpose)
     if challenge.last_sent_at > now() - timedelta(seconds=60):
         raise ApiError(429, "Please wait a minute before requesting another code.")

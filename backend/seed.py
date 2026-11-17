@@ -2,12 +2,12 @@ import math
 import secrets
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
 from backend.auth import hash_password
 from backend.config import settings
-from backend.db import engine, now
+from backend.db import engine, new_id, now
 from backend.models import (
     Incident,
     Monitor,
@@ -50,7 +50,7 @@ def seed():
             ("Authentication", "auth", 120),
             ("Asset CDN", "cdn", 65),
         ]
-        instant, ids = now(), []
+        instant, ids, all_checks = now(), [], []
         for index, (name, path, baseline) in enumerate(components):
             paused = index == 5
             monitor = Monitor(
@@ -88,19 +88,20 @@ def seed():
                     )
                     for quarter in range(95, 0, -1)
                 ]
-            db.add_all(
+            all_checks.extend(
                 [
-                    MonitorCheck(
-                        monitor_id=monitor.id,
-                        checked_at=instant - timedelta(seconds=age),
-                        result_status="DOWN" if failed else "UP",
-                        http_status_code=503 if failed else 200,
-                        response_time_ms=latency,
-                        error_type="HTTP" if failed else None,
-                        sanitized_error_message="Demo observation: unexpected HTTP 503."
-                        if failed
-                        else None,
-                    )
+                    {
+                        "id": new_id(),
+                        "monitor_id": monitor.id,
+                        "checked_at": instant - timedelta(seconds=age),
+                        "result_status": "DOWN" if failed else "UP",
+                        "http_status_code": 503 if failed else 200,
+                        "response_time_ms": latency,
+                        "error_type": "HTTP" if failed else None,
+                        "sanitized_error_message": (
+                            "Demo observation: unexpected HTTP 503." if failed else None
+                        ),
+                    }
                     for age, failed, latency in samples
                 ]
             )
@@ -114,6 +115,8 @@ def seed():
                         status="RESOLVED",
                     )
                 )
+        if all_checks:
+            db.execute(insert(MonitorCheck), all_checks)
         page = StatusPage(
             user_id=user.id, name="AliveRadar demo", slug="pulse-demo", is_public=True
         )

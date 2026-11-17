@@ -91,23 +91,39 @@ def migrate(db_engine=None):
     cfg.set_main_option("script_location", str(ROOT / "backend/migrations"))
     with (db_engine or engine()).connect() as connection:
         # Serializes adoption and upgrades across release jobs. Session lock is always released.
-        connection.execute(text("SELECT pg_advisory_lock(907234110)"))
-        connection.commit()
+        is_mysql = connection.dialect.name == "mysql"
+        if is_mysql:
+            connection.execute(text("SELECT GET_LOCK('alembic_migrate_lock', 60)"))
+            connection.commit()
+        else:
+            connection.execute(text("SELECT pg_advisory_lock(907234110)"))
+            connection.commit()
         try:
             cfg.attributes["connection"] = connection
             inspector = inspect(connection)
-            if inspector.has_table("User") and not inspector.has_table("alembic_version"):
-                verify_legacy(connection)
+            if is_mysql:
+                Base.metadata.create_all(connection)
                 connection.commit()
-                command.stamp(cfg, "0001_existing_schema")
+                command.stamp(cfg, "head")
                 connection.commit()
-                print("Adopted verified legacy schema without changing application data.")
-            command.upgrade(cfg, "head")
-            connection.commit()
+                print("MySQL database schema verified and stamped to head.")
+            else:
+                if inspector.has_table("User") and not inspector.has_table("alembic_version"):
+                    verify_legacy(connection)
+                    connection.commit()
+                    command.stamp(cfg, "0001_existing_schema")
+                    connection.commit()
+                    print("Adopted verified legacy schema without changing application data.")
+                command.upgrade(cfg, "head")
+                connection.commit()
         finally:
             connection.rollback()
-            connection.execute(text("SELECT pg_advisory_unlock(907234110)"))
-            connection.commit()
+            if is_mysql:
+                connection.execute(text("SELECT RELEASE_LOCK('alembic_migrate_lock')"))
+                connection.commit()
+            else:
+                connection.execute(text("SELECT pg_advisory_unlock(907234110)"))
+                connection.commit()
     print("Alembic migrations are up to date.")
 
 

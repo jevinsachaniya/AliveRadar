@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import cast
 
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, select, text
 from sqlalchemy.orm import Session
 
 from backend.db import now
@@ -39,7 +39,7 @@ def analytics(db: Session, monitor_id: str, days: int, until=None) -> dict:
     total, up, avg, minimum, maximum = db.execute(
         select(
             func.count(),
-            func.count().filter(MonitorCheck.result_status == "UP"),
+            func.coalesce(func.sum(case((MonitorCheck.result_status == "UP", 1), else_=0)), 0),
             func.avg(MonitorCheck.response_time_ms),
             func.min(MonitorCheck.response_time_ms),
             func.max(MonitorCheck.response_time_ms),
@@ -58,32 +58,74 @@ def analytics(db: Session, monitor_id: str, days: int, until=None) -> dict:
             )
         )
     )
-    bucket = "15 minutes" if days == 1 else "1 hour" if days == 7 else "6 hours"
-    chart = [
-        dict(row)
-        for row in db.execute(
-            text("""
-        SELECT date_bin(CAST(:bucket AS interval), "checkedAt", '2000-01-01'::timestamp) AS time,
-        ROUND(AVG("responseTimeMs"))::float AS "responseMs", COUNT(*)::int AS checks,
-        COUNT(*) FILTER (WHERE "resultStatus"='UP')::int AS up FROM "MonitorCheck"
-        WHERE "monitorId"=:monitor AND "checkedAt">=:since AND "checkedAt"<=:until
-        AND "resultStatus" IN ('UP','DOWN') GROUP BY time ORDER BY time
-        """),
-            {"bucket": bucket, "monitor": monitor_id, "since": since, "until": until},
-        ).mappings()
-    ]
-    daily = [
-        dict(row)
-        for row in db.execute(
-            text("""
-        SELECT date_trunc('day', "checkedAt") AS day, COUNT(*)::int AS checks,
-        COUNT(*) FILTER (WHERE "resultStatus"='UP')::int AS up FROM "MonitorCheck"
-        WHERE "monitorId"=:monitor AND "checkedAt">=:since AND "checkedAt"<=:until
-        AND "resultStatus" IN ('UP','DOWN') GROUP BY day ORDER BY day
-        """),
-            {"monitor": monitor_id, "since": until - timedelta(days=30), "until": until},
-        ).mappings()
-    ]
+    if db.get_bind().dialect.name == "mysql":
+        bucket_seconds = 15 * 60 if days == 1 else 3600 if days == 7 else 6 * 3600
+        chart = [
+            {
+                "time": row["time"],
+                "responseMs": float(row["responseMs"]) if row["responseMs"] is not None else None,
+                "checks": int(row["checks"]),
+                "up": int(row["up"]),
+            }
+            for row in db.execute(
+                text("""
+            SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(`checkedAt`) / :bucket_seconds) * :bucket_seconds) AS time,
+            ROUND(AVG(`responseTimeMs`)) AS responseMs, COUNT(*) AS checks,
+            COALESCE(SUM(CASE WHEN `resultStatus`='UP' THEN 1 ELSE 0 END), 0) AS up FROM `MonitorCheck`
+            WHERE `monitorId`=:monitor AND `checkedAt`>=:since AND `checkedAt`<=:until
+            AND `resultStatus` IN ('UP','DOWN') GROUP BY time ORDER BY time
+            """),
+                {
+                    "bucket_seconds": bucket_seconds,
+                    "monitor": monitor_id,
+                    "since": since,
+                    "until": until,
+                },
+            ).mappings()
+        ]
+        daily = [
+            {
+                "day": row["day"],
+                "checks": int(row["checks"]),
+                "up": int(row["up"]),
+            }
+            for row in db.execute(
+                text("""
+            SELECT CAST(DATE(`checkedAt`) AS DATETIME) AS day, COUNT(*) AS checks,
+            COALESCE(SUM(CASE WHEN `resultStatus`='UP' THEN 1 ELSE 0 END), 0) AS up FROM `MonitorCheck`
+            WHERE `monitorId`=:monitor AND `checkedAt`>=:since AND `checkedAt`<=:until
+            AND `resultStatus` IN ('UP','DOWN') GROUP BY day ORDER BY day
+            """),
+                {"monitor": monitor_id, "since": until - timedelta(days=30), "until": until},
+            ).mappings()
+        ]
+    else:
+        bucket = "15 minutes" if days == 1 else "1 hour" if days == 7 else "6 hours"
+        chart = [
+            dict(row)
+            for row in db.execute(
+                text("""
+            SELECT date_bin(CAST(:bucket AS interval), "checkedAt", '2000-01-01'::timestamp) AS time,
+            ROUND(AVG("responseTimeMs"))::float AS "responseMs", COUNT(*)::int AS checks,
+            COUNT(*) FILTER (WHERE "resultStatus"='UP')::int AS up FROM "MonitorCheck"
+            WHERE "monitorId"=:monitor AND "checkedAt">=:since AND "checkedAt"<=:until
+            AND "resultStatus" IN ('UP','DOWN') GROUP BY time ORDER BY time
+            """),
+                {"bucket": bucket, "monitor": monitor_id, "since": since, "until": until},
+            ).mappings()
+        ]
+        daily = [
+            dict(row)
+            for row in db.execute(
+                text("""
+            SELECT date_trunc('day', "checkedAt") AS day, COUNT(*)::int AS checks,
+            COUNT(*) FILTER (WHERE "resultStatus"='UP')::int AS up FROM "MonitorCheck"
+            WHERE "monitorId"=:monitor AND "checkedAt">=:since AND "checkedAt"<=:until
+            AND "resultStatus" IN ('UP','DOWN') GROUP BY day ORDER BY day
+            """),
+                {"monitor": monitor_id, "since": until - timedelta(days=30), "until": until},
+            ).mappings()
+        ]
     downtime = sum(
         max(
             0,

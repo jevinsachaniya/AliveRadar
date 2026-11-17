@@ -1,15 +1,14 @@
 import asyncio
 import socket
 import ssl
-from datetime import UTC, datetime
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from time import perf_counter
 from urllib.parse import urlsplit
 
 import aiohttp
 
 from backend.security import PinnedResolver, safe_destination
-
 
 SSL_EXPIRY_WARNING_DAYS = 14
 
@@ -100,7 +99,7 @@ async def perform_network_check(
         result.tls_expires_at = expires_at
         result.tls_days_remaining = remaining
         result.tls_status = "EXPIRING" if remaining <= SSL_EXPIRY_WARNING_DAYS else "VALID"
-    except (ssl.SSLError, OSError, asyncio.TimeoutError):
+    except (TimeoutError, ssl.SSLError, OSError):
         result.tls_status = "FAILED"
         result.tls_error = "The TLS certificate or secure connection could not be validated."
     return result, destination

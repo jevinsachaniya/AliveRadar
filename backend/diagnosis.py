@@ -5,8 +5,8 @@ It identifies repeated patterns; it never presents a root cause as confirmed.
 """
 
 from collections import Counter
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable
 
 
 def _value(item, name, default=None):

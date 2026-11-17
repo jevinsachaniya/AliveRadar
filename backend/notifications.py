@@ -30,16 +30,33 @@ def claim_deliveries():
             )
             .values(status="FAILED", lease_until=None, lease_token=None)
         )
-        claims: Sequence[str] = (
-            db.execute(
-                text(
-                    """WITH due AS (SELECT id FROM "NotificationDelivery" WHERE ((status='PENDING' AND "nextAttemptAt"<=NOW()) OR (status='SENDING' AND "leaseUntil"<NOW())) AND attempts<6 ORDER BY "nextAttemptAt" FOR UPDATE SKIP LOCKED LIMIT 5) UPDATE "NotificationDelivery" d SET status='SENDING',attempts=attempts+1,"leaseUntil"=NOW()+interval '60 seconds',"leaseToken"=:token FROM due WHERE d.id=due.id RETURNING d.id"""
-                ),
-                {"token": token},
+        claims: Sequence[str]
+        if db.get_bind().dialect.name == "mysql":
+            claims = list(
+                db.scalars(
+                    text(
+                        """SELECT id FROM `NotificationDelivery` WHERE ((status='PENDING' AND `nextAttemptAt`<=NOW()) OR (status='SENDING' AND `leaseUntil`<NOW())) AND attempts<6 ORDER BY `nextAttemptAt` LIMIT 5 FOR UPDATE SKIP LOCKED"""
+                    )
+                )
             )
-            .scalars()
-            .all()
-        )
+            if claims:
+                db.execute(
+                    text(
+                        """UPDATE `NotificationDelivery` SET status='SENDING', attempts=attempts+1, `leaseUntil`=DATE_ADD(NOW(), INTERVAL 60 SECOND), `leaseToken`=:token WHERE id IN :ids"""
+                    ),
+                    {"token": token, "ids": tuple(claims)},
+                )
+        else:
+            claims = (
+                db.execute(
+                    text(
+                        """WITH due AS (SELECT id FROM "NotificationDelivery" WHERE ((status='PENDING' AND "nextAttemptAt"<=NOW()) OR (status='SENDING' AND "leaseUntil"<NOW())) AND attempts<6 ORDER BY "nextAttemptAt" FOR UPDATE SKIP LOCKED LIMIT 5) UPDATE "NotificationDelivery" d SET status='SENDING',attempts=attempts+1,"leaseUntil"=NOW()+interval '60 seconds',"leaseToken"=:token FROM due WHERE d.id=due.id RETURNING d.id"""
+                    ),
+                    {"token": token},
+                )
+                .scalars()
+                .all()
+            )
         db.commit()
         return [(identifier, token) for identifier in claims]
 
